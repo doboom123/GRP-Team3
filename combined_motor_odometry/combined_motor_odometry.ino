@@ -78,6 +78,10 @@ float rotationalVelocity_SP = 5;   // right-wheel angular velocity setpoint, rad
 float voltage = 0;                 // set directly to bypass velocity control
 float DC_gain = 0.25;
 
+void MotorControl(float rotationalVelocity_SP, float angularVelocityR, float DC_gain, float &voltage){
+    voltage  = (rotationalVelocity_SP - angularVelocityR)*DC_gain;
+}
+
 void setup() {
 
   pinMode(encoderApinR, INPUT_PULLUP);
