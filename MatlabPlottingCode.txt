@@ -1,0 +1,50 @@
+%% Runmotorsim.m
+% This script runs a simulation of a motor and plots the results
+
+%
+%% Define motor parameters
+
+%% Run a Simulation
+%
+% Open the block diagram so it appears in the documentation when published.
+% Make sure the block diagram is closed before running the publish function
+%
+open_system('System Name')
+%
+% Run the simulation
+%
+out=sim('System Name');
+%
+% Load the experimental data
+%
+data = load('DATA.txt');
+%
+% Close the system
+%
+close_system(motorControl)
+
+
+%% A Plot of the results
+%
+
+figure
+
+subplot(2,1,1)
+hold on
+plot(out.Voltage,'--','linewidth',2)
+plot(data(:,1),data(:,3),'linewidth',2)
+legend('Simulated','Experimental','location','southeast')
+hold off
+xlabel('Time (s)')
+ylabel('Voltage (V)')
+
+
+subplot(2,1,2)
+hold on
+plot(out.Velocity,'--','linewidth',2)
+plot(data(:,1),data(:,2),'linewidth',2)
+plot(out.DesiredVelocity,'--','linewidth',2)
+hold off
+legend('Simulated','Experimental', 'Desired', 'location','southeast')
+xlabel('Time (s)')
+ylabel('Angular Velocity (rad/s)')
