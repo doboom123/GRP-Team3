@@ -1,6 +1,8 @@
-// 09/23/2026
-// Derrick Scott
-// COMBINED SKETCH — Adapts the Odometry code merge to meet the goals of miniproject 1
+#include <Wire.h>
+#define MY_ADDR 8
+
+// 09/25/2026
+// Derrick Scott Joao Vitor Peclat Fayad
 //
 // This code lets you set the positions of the wheels in 4 configurations
 // each wheel has a "top" considered to be 0, and a "bottom" considered to 
@@ -9,17 +11,23 @@
 //
 
 // Timing
-unsigned long desired_Ts_ms = 10;   // sample period, ms
+unsigned long desired_Ts_ms = 20;   // sample period, ms
 unsigned long last_time_ms;
 unsigned long start_time_ms;
 long current_time_ms = 0;             // seconds since start
 float dt = 0;                       // seconds, sample period as a float
 // ---------------------------------------------------------------------
 
+//PI Communication
+volatile uint8_t offset = 0;
+volatile uint8_t instruction[32] = {0};
+volatile uint8_t msgLength = 0;
+// ---------------------------------------------------------------------
+
 // Encoder pins
 const int encoderApinR = 2;   // was RencApin / encoderAR
-const int encoderApinL = 3;   // was LencApin / encoderAL
 const int encoderBpinR = 5;   // was RencBpin / encoderBR
+const int encoderApinL = 3;   // was LencApin / encoderAL
 const int encoderBpinL = 6;   // was LencBpin / encoderBL
 // ---------------------------------------------------------------------
 
@@ -32,15 +40,15 @@ const int PWM_PINs[2] = {9, 10};
 // constants determined by the physical design
 const float radius = 0.0762;      // wheel radius, meters
 const int fullRotation = 3200;    // encoder counts per full wheel rotation
-const float trackWidth = 0.3556;  // meters, distance between wheels ("b" in file 2)
+const float robotDiameter = 0.3556;  // meters, distance between wheels
 // ---------------------------------------------------------------------
 
 // Position / velocity (angular, per-wheel)
 volatile long encoderCount[2] = {0, 0};
 float desired_wheel_theta[2] = {3.1 , 3.1}; //rad
-float theta;                     // rad
+float theta[2];                     // rad
 float prevTheta[2];     // rad
-float angularVelocity;  // rad/s
+float angularVelocity[2];  // rad/s
 float linearVelocity[2];    // m/s (= angular * radius)
 // ---------------------------------------------------------------------
 
@@ -48,11 +56,12 @@ float linearVelocity[2];    // m/s (= angular * radius)
 float phi = 0;   // robot heading, rad
 float x = 0;     // robot x position, m
 float y = 0;     // robot y position, m
+float odometry[3] = {0,0,0}; // x, y, and phi. X and Y are in meters and phi is in radians.
 // ---------------------------------------------------------------------
 
 // Motor control 
-float angularVelocity_SP;   //angular velocity setpoint, rad/s
-float voltage = 0;             // set directly to bypass velocity control
+float angularVelocity_SP[2];   //angular velocity setpoint, rad/s
+float voltage[2];             // set directly to bypass velocity control
 float DC_gain = 0.25;
 const float Ki_pos = .8;
 const float Kp_pos = 15;
@@ -77,6 +86,11 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(encoderApinR), encoderISR_R, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encoderApinL), encoderISR_L, CHANGE);
 
+  // Initialize I2C
+  Wire.begin(MY_ADDR);
+  // Set callbacks for I2C interrupts
+  Wire.onReceive(receive);
+
 
   Serial.begin(115200);
   last_time_ms = millis();
@@ -86,34 +100,51 @@ void setup() {
 
 void loop() {
 
+  // If there is data on the buffer, read it
+  if (msgLength > 0) {
+    if (offset==1) {
+      digitalWrite(LED_BUILTIN,instruction[0]);
+    }
+    printReceived();
+    msgLength = 0;
+  }
+
   digitalWrite(STBY_PIN, HIGH);
 
+  
+  noInterrupts();
+  int localCountL = encoderCount[1];
+  int localCountR = encoderCount[0];
+  interrupts();
+
+  theta[0] = (localCountR / fullRotation) * 2 * PI;
+  theta[1] = (localCountL / fullRotation) * 2 * PI;
+
   if (current_time_ms - last_time_ms >= desired_Ts_ms) {
-    for(int i = 0; i<2; i++){
 
-    noInterrupts();
-    long localCount = encoderCount[i];
-    interrupts();
+    angularVelocity[0] = 1000.0 * (theta[0] - prevTheta[0]) / (float)(current_time_ms - last_time_ms);
+    angularVelocity[1] = 1000.0 * (theta[1] - prevTheta[1]) / (float)(current_time_ms - last_time_ms);
+    prevTheta[0] = theta[0];
+    prevTheta[1] = theta[1];
 
-    theta = ((float)localCount / (float)fullRotation) * 2 * PI;
-    angularVelocity = 1000.0 * (theta - prevTheta[i]) / (float)(current_time_ms - last_time_ms);
-    prevTheta[i] = theta;
+    angularVelocity_SP[0] = Ki_pos * (theta[0] + Kp_pos * (desired_wheel_theta[0] - theta[0]));
+    angularVelocity_SP[1] = Ki_pos * (theta[1] + Kp_pos * (desired_wheel_theta[1] - theta[1]));
+    voltage[0] = Kp_vel * (angularVelocity_SP[0] - angularVelocity[0]);
+    voltage[1] = Kp_vel * (angularVelocity_SP[1] - angularVelocity[1]);
 
-    float angularVelocity_SP = Ki_pos * (theta + Kp_pos * (desired_wheel_theta[i] - theta));
-    float voltage = Kp_vel * (angularVelocity_SP - angularVelocity);
-
-    if(voltage >= 8.0){
-      voltage = 8;
-    } else if(voltage <= -8.0){
-      voltage = -8;
+    for(int i = 0; i < 2; i++){
+    if(voltage[i] >= 8.0){
+      voltage[i] = 8;
+    } else if(voltage[i] <= -8.0){
+      voltage[i] = -8;
     }
 
     if (voltage > 0) {
       digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
-      analogWrite(PWM_PINs[i], (abs(voltage) / 8.0 * 255));
+      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
     } else if (voltage < 0) {
       digitalWrite(SIGN_PIN[i], !i ? HIGH : LOW);
-      analogWrite(PWM_PINs[i], (abs(voltage) / 8.0 * 255));
+      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
     }
     else{
       analogWrite(PWM_PINs[i], 0);
@@ -121,23 +152,21 @@ void loop() {
 
     }
 
+    
+
       last_time_ms = current_time_ms;
 
 
 
-  }
-// ODOMETRY CODE NOT UPDATED FOR ARRAYS
-      // linearVelocityL = angularVelocityL * radius;
-      // linearVelocityR = angularVelocityR * radius;
-
-      // prevThetaL = thetaL;
-      // prevThetaR = thetaR;
-
   
-      // phi += ((linearVelocityR - linearVelocityL) / trackWidth) * dt;
-      // dt = (float)(now_ms - last_time_ms) / 1000.0;
-      // x += cos(phi) * (linearVelocityL + linearVelocityR) / 2 * dt;
-      // y += sin(phi) * (linearVelocityL + linearVelocityR) / 2 * dt;
+// ODOMETRY CODE NOT UPDATED FOR ARRAYS
+      linearVelocity[1] = angularVelocity[1] * radius;
+      linearVelocity[0] = angularVelocity[0] * radius;
+
+      odometry[2] += ((linearVelocity[0] - linearVelocity[1]) / robotDiameter) * dt;
+      dt = (float)(current_time_ms - last_time_ms) / 1000.0;
+      odometry[0] += cos(phi) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
+      odometry[1] += sin(phi) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
      
       // ---- Print  ----
       // Serial.print(current_time_ms);
@@ -155,9 +184,9 @@ void loop() {
       // Serial.print(phi, 4);
       // Serial.println("");
 
+  }
 
-
-            current_time_ms = millis();
+    current_time_ms = millis();
     Serial.print("");
     Serial.print(current_time_ms);
     Serial.print("\t");
@@ -188,5 +217,31 @@ void encoderISR_R() {
     encoderCount[0] += 2;
   } else {
     encoderCount[0] -= 2;
+  }
+}
+
+
+void printReceived() {
+  // Print on serial console
+  Serial.print("Offset received: ");
+  Serial.println(offset);
+  Serial.print("Message Length: ");
+  Serial.println(msgLength);
+  Serial.print("Instruction received: ");
+
+  for (int i=0;i<msgLength;i++) {
+    Serial.print(String(instruction[i])+"\t");
+  }
+  Serial.println("");
+}
+
+// function called when an I2C interrupt event happens
+void receive() {
+  // Set the offset, this will always be the first byte.
+  offset = Wire.read();
+  // If there is information after the offset, it is telling us more about the command.
+  while (Wire.available()) {
+    instruction[msgLength] = Wire.read();
+    msgLength++;
   }
 }
