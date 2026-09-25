@@ -101,6 +101,7 @@ void setup() {
 }
 
 void loop() {
+  current_time_ms = millis();
 
   // If there is data on the buffer, read it
   if (msgLength > 0) {
@@ -162,9 +163,7 @@ void loop() {
 
     }
 
-    
-
-      last_time_ms = current_time_ms;
+  
 
       dt = last_time_ms - current_time_ms;
 
@@ -178,6 +177,15 @@ void loop() {
       odometry[2] += ((linearVelocity[0] - linearVelocity[1]) / robotDiameter) * dt;
       odometry[0] += cos(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
       odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
+
+      Serial.print(current_time_ms);
+      Serial.print(",");
+      Serial.print(odometry[0]);
+      Serial.print(",");
+      Serial.print(odometry[1]);
+      Serial.print(",");
+      Serial.print(odometry[2]);
+      Serial.print("\n");
      
       // ---- Print  ----
       // Serial.print(current_time_ms);
@@ -195,9 +203,11 @@ void loop() {
       // Serial.print(phi, 4);
       // Serial.println("");
 
+      last_time_ms = current_time_ms;
+
   }
 
-    current_time_ms = millis();
+
     
 
 } 
@@ -209,9 +219,9 @@ void encoderISR_L() {
   int AL = digitalRead(encoderApinL);
   int BL = digitalRead(encoderBpinL);
   if (AL == BL) {
-    encoderCount[1] += 2;
-  } else {
     encoderCount[1] -= 2;
+  } else {
+    encoderCount[1] += 2;
   }
 }
 
