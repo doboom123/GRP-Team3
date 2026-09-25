@@ -1,0 +1,47 @@
+%% Live animation of vehicle position and orientation from serial feed
+
+%  Set up serial connection
+% Update the port name for your system:
+% Windows: 'COM3', Mac/Linux: '/dev/tty.usbmodemXXXX'
+s = serialport("COM3", 9600);
+configureTerminator(s, "LF");
+flush(s);
+
+%  Define the shape vertices  
+r_width = .5;
+r_length = 1;
+V = [-r_length/2 -r_length/2 0 r_length/2 0;
+     -r_width/2   r_width/2  r_width/2  0  -r_width/2];
+
+%  Set up figure once, outside the loop
+figure
+h = fill(nan(1,5), nan(1,5), 'y');   % placeholder shape object
+axis([-10 10 -10 10])
+axis equal
+grid on
+
+%Loop that does everything
+while true
+    if s.NumBytesAvailable > 0 || true 
+        line = readline(s);
+        values = str2double(split(line, ","));
+
+        if numel(values) ~= 4 || any(isnan(values))
+            continue   % skip partial lines
+        end
+
+        t   = values(1);
+        x   = values(2);
+        y   = values(3);
+        phi = values(4);
+
+        % rotation matrix
+        T = [cos(phi) -sin(phi); sin(phi) cos(phi)];
+        pos = [x; y];
+        v_c = T*V + pos*ones(1,5);
+
+        % update shape instead of redrawing the whole figure
+        set(h, 'XData', v_c(1,:), 'YData', v_c(2,:));
+        drawnow
+    end
+end

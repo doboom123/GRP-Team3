@@ -187,13 +187,7 @@ void loop() {
   }
 
     current_time_ms = millis();
-    Serial.print("");
-    Serial.print(current_time_ms);
-    Serial.print("\t");
-    Serial.print(prevTheta[0]);
-    Serial.print("\t");
-    Serial.print(prevTheta[1]);
-    Serial.print("\n");
+    
 
 } 
 
