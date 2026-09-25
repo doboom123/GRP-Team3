@@ -1,5 +1,6 @@
 #include <Wire.h>
 #define MY_ADDR 8
+#define PI 3.1415926535897932384626433832795
 
 // 09/25/2026
 // Derrick Scott Joao Vitor Peclat Fayad
@@ -20,8 +21,9 @@ float dt = 0;                       // seconds, sample period as a float
 
 //PI Communication
 volatile uint8_t offset = 0;
-volatile uint8_t instruction[32] = {0};
+volatile uint8_t instruction[2] = {0};
 volatile uint8_t msgLength = 0;
+int currentDirection[2] = {0};
 // ---------------------------------------------------------------------
 
 // Encoder pins
@@ -39,13 +41,13 @@ const int PWM_PINs[2] = {9, 10};
 
 // constants determined by the physical design
 const float radius = 0.0762;      // wheel radius, meters
-const int fullRotation = 3200;    // encoder counts per full wheel rotation
+const float fullRotation = 3200;    // encoder counts per full wheel rotation
 const float robotDiameter = 0.3556;  // meters, distance between wheels
 // ---------------------------------------------------------------------
 
 // Position / velocity (angular, per-wheel)
 volatile long encoderCount[2] = {0, 0};
-float desired_wheel_theta[2] = {3.1 , 3.1}; //rad
+float desired_wheel_theta[2] = {0 , 0}; //rad
 float theta[2];                     // rad
 float prevTheta[2];     // rad
 float angularVelocity[2];  // rad/s
@@ -102,12 +104,20 @@ void loop() {
 
   // If there is data on the buffer, read it
   if (msgLength > 0) {
-    if (offset==1) {
-      digitalWrite(LED_BUILTIN,instruction[0]);
-    }
     printReceived();
     msgLength = 0;
   }
+
+  if(instruction[0] != 7 && instruction[1] != 7){
+    if(instruction[0] != currentDirection[0]){
+      desired_wheel_theta[0] = PI * instruction[0];
+    }
+
+    if(instruction[1] != currentDirection[1]){
+      desired_wheel_theta[1] = PI * instruction[1];
+    }
+  }
+
 
   digitalWrite(STBY_PIN, HIGH);
 
@@ -156,17 +166,18 @@ void loop() {
 
       last_time_ms = current_time_ms;
 
+      dt = last_time_ms - current_time_ms;
+
 
 
   
 // ODOMETRY CODE NOT UPDATED FOR ARRAYS
       linearVelocity[1] = angularVelocity[1] * radius;
       linearVelocity[0] = angularVelocity[0] * radius;
-
-      odometry[2] += ((linearVelocity[0] - linearVelocity[1]) / robotDiameter) * dt;
       dt = (float)(current_time_ms - last_time_ms) / 1000.0;
-      odometry[0] += cos(phi) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
-      odometry[1] += sin(phi) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
+      odometry[2] += ((linearVelocity[0] - linearVelocity[1]) / robotDiameter) * dt;
+      odometry[0] += cos(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
+      odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
      
       // ---- Print  ----
       // Serial.print(current_time_ms);
@@ -224,7 +235,7 @@ void printReceived() {
   Serial.print("Instruction received: ");
 
   for (int i=0;i<msgLength;i++) {
-    Serial.print(String(instruction[i])+"\t");
+    Serial.print(String(desired_wheel_theta[i])+"\t");
   }
   Serial.println("");
 }
