@@ -21,9 +21,9 @@ float dt = 0;                       // seconds, sample period as a float
 
 //PI Communication
 volatile uint8_t offset = 0;
-volatile uint8_t instruction[2] = {0};
+volatile uint8_t instruction[32] = {0};
 volatile uint8_t msgLength = 0;
-int currentDirection[2] = {0};
+int currentDirection[2] = {0, 0};
 // ---------------------------------------------------------------------
 
 // Encoder pins
@@ -47,8 +47,8 @@ const float robotDiameter = 0.3556;  // meters, distance between wheels
 
 // Position / velocity (angular, per-wheel)
 volatile long encoderCount[2] = {0, 0};
-float desired_wheel_theta[2] = {PI , 3.1}; //rad
-float theta[2];                     // rad
+float desired_wheel_theta[2] = {0 , 0}; //rad
+float theta[2] = {0, 0};                     // rad
 float prevTheta[2];     // rad
 float angularVelocity[2];  // rad/s
 float linearVelocity[2];    // m/s (= angular * radius)
@@ -106,21 +106,14 @@ void loop() {
   current_time_ms = millis();
 
 
-  // If there is data on the buffer, read it
-  if (msgLength > 0) {
-    printReceived();
-    msgLength = 0;
+ if (msgLength > 0) {
+  if (offset==1) {
+  digitalWrite(LED_BUILTIN,instruction[0]);
+  }
+  printReceived();
+  msgLength = 0;
   }
 
-  if(instruction[0] != 7 && instruction[1] != 7){
-    if(instruction[0] != currentDirection[0]){
-      desired_wheel_theta[0] = PI * instruction[0];
-    }
-
-    if(instruction[1] != currentDirection[1]){
-      desired_wheel_theta[1] = PI * instruction[1];
-    }
-  }
 
 
   digitalWrite(STBY_PIN, HIGH);
@@ -135,6 +128,19 @@ void loop() {
   theta[1] = ((float)localCountL / (float)fullRotation) * 2 * PI;
 
   if (current_time_ms - last_time_ms >= desired_Ts_ms) {
+    
+    receive();
+    if(instruction[0] != 7 && instruction[1] != 7){
+      if(instruction[0] != currentDirection[0]){
+        desired_wheel_theta[0] = PI * instruction[0];
+        currentDirection[0] = instruction[0];
+      }
+
+      if(instruction[1] != currentDirection[1]){
+        desired_wheel_theta[1] = PI * instruction[1];
+        currentDirection[1] = instruction[1];
+      }
+  }
     for(int i = 0; i < 2; i++){
     
     deltaTheta[i] = desired_wheel_theta[i] - theta[i];
@@ -183,14 +189,7 @@ void loop() {
       odometry[0] += cos(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
       odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
 
-      Serial.print(current_time_ms);
-      Serial.print(",");
-      Serial.print(theta[0]);
-      Serial.print(",");
-      Serial.print(angularVelocity[0]);
-      Serial.print(",");
-      Serial.print(voltage[0]);
-      Serial.print("\n");
+    
      
       // ---- Print  ----
       // Serial.print(current_time_ms);
@@ -241,27 +240,28 @@ void encoderISR_R() {
 }
 
 
+// printReceived helps us see what data we are getting from the leader
 void printReceived() {
-  // Print on serial console
-  Serial.print("Offset received: ");
-  Serial.println(offset);
-  Serial.print("Message Length: ");
-  Serial.println(msgLength);
-  Serial.print("Instruction received: ");
-
-  for (int i=0;i<msgLength;i++) {
-    Serial.print(String(instruction[i])+"\t");
-  }
-  Serial.println("");
+// Print on serial console
+Serial.print("Offset received: ");
+Serial.println(offset);
+Serial.print("Message Length: ");
+Serial.println(msgLength);
+Serial.print("Instruction received: ");
+for (int i=0;i<msgLength;i++) {
+Serial.print(String(instruction[i])+"\t");
+}
+Serial.println("");
 }
 
 // function called when an I2C interrupt event happens
 void receive() {
-  // Set the offset, this will always be the first byte.
-  offset = Wire.read();
-  // If there is information after the offset, it is telling us more about the command.
-  while (Wire.available()) {
-    instruction[msgLength] = Wire.read();
-    msgLength++;
-  }
+  msgLength = 0;
+// Set the offset, this will always be the first byte.
+offset = Wire.read();
+// If there is information after the offset, it is telling us more about the command.
+while (Wire.available()) {
+instruction[msgLength] = Wire.read();
+msgLength++;
+}
 }
