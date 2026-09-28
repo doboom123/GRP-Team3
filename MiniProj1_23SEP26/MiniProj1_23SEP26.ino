@@ -103,6 +103,7 @@ void setup() {
 void loop() {
   current_time_ms = millis();
 
+
   // If there is data on the buffer, read it
   if (msgLength > 0) {
     printReceived();
@@ -180,11 +181,11 @@ void loop() {
 
       Serial.print(current_time_ms);
       Serial.print(",");
-      Serial.print(odometry[0]);
+      Serial.print(digitalRead(SIGN_PIN[0]));
       Serial.print(",");
-      Serial.print(odometry[1]);
+      Serial.print(angularVelocity[0]);
       Serial.print(",");
-      Serial.print(odometry[2]);
+      Serial.print(voltage[0]);
       Serial.print("\n");
      
       // ---- Print  ----
