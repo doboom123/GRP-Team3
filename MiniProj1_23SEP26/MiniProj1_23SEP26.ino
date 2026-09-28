@@ -1,6 +1,6 @@
 #include <Wire.h>
 #define MY_ADDR 8
-#define PI 3.1415926535897932384626433832795
+#define PI 3.14
 
 // 09/25/2026
 // Derrick Scott Joao Vitor Peclat Fayad
@@ -47,11 +47,13 @@ const float robotDiameter = 0.3556;  // meters, distance between wheels
 
 // Position / velocity (angular, per-wheel)
 volatile long encoderCount[2] = {0, 0};
-float desired_wheel_theta[2] = {0 , 0}; //rad
+float desired_wheel_theta[2] = {PI , 3.1}; //rad
 float theta[2];                     // rad
 float prevTheta[2];     // rad
 float angularVelocity[2];  // rad/s
 float linearVelocity[2];    // m/s (= angular * radius)
+float deltaTheta[2] = {0,0};
+float accumTheta[2] = {0,0};
 // ---------------------------------------------------------------------
 
 // Odometry 
@@ -129,26 +131,28 @@ void loop() {
   int localCountR = encoderCount[0];
   interrupts();
 
-  theta[0] = (localCountR / fullRotation) * 2 * PI;
-  theta[1] = (localCountL / fullRotation) * 2 * PI;
+  theta[0] = ((float)localCountR / (float)fullRotation) * 2 * PI;
+  theta[1] = ((float)localCountL / (float)fullRotation) * 2 * PI;
 
   if (current_time_ms - last_time_ms >= desired_Ts_ms) {
+    for(int i = 0; i < 2; i++){
+    
+    deltaTheta[i] = desired_wheel_theta[i] - theta[i];
+    accumTheta[i] += deltaTheta[i] * desired_Ts_ms;
 
-    angularVelocity[0] = 1000.0 * (theta[0] - prevTheta[0]) / (float)(current_time_ms - last_time_ms);
-    angularVelocity[1] = 1000.0 * (theta[1] - prevTheta[1]) / (float)(current_time_ms - last_time_ms);
-    prevTheta[0] = theta[0];
-    prevTheta[1] = theta[1];
+    angularVelocity[i] = 1000.0 * (theta[i] - prevTheta[i]) / (float)(current_time_ms - last_time_ms);
+    prevTheta[i] = theta[i];
+    angularVelocity_SP[i] = Ki_pos * accumTheta[i] + (Kp_pos * (deltaTheta[i]));
+    voltage[i] = Kp_vel * (angularVelocity_SP[i] - angularVelocity[i]);
 
-    angularVelocity_SP[0] = Ki_pos * (theta[0] + Kp_pos * (desired_wheel_theta[0] - theta[0]));
-    angularVelocity_SP[1] = Ki_pos * (theta[1] + Kp_pos * (desired_wheel_theta[1] - theta[1]));
-    voltage[0] = Kp_vel * (angularVelocity_SP[0] - angularVelocity[0]);
-    voltage[1] = Kp_vel * (angularVelocity_SP[1] - angularVelocity[1]);
-
+    
     
     if(voltage[i] >= 8.0){
       voltage[i] = 8;
+      accumTheta[i] -= deltaTheta[i] * desired_Ts_ms;
     } else if(voltage[i] <= -8.0){
       voltage[i] = -8;
+      accumTheta[i] -= deltaTheta[i] * desired_Ts_ms;
     }
 
     if (voltage[i] > 0) {
@@ -181,7 +185,7 @@ void loop() {
 
       Serial.print(current_time_ms);
       Serial.print(",");
-      Serial.print(digitalRead(SIGN_PIN[0]));
+      Serial.print(theta[0]);
       Serial.print(",");
       Serial.print(angularVelocity[0]);
       Serial.print(",");
