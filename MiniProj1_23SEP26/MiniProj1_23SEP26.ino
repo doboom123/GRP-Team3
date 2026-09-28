@@ -250,7 +250,7 @@ void printReceived() {
   Serial.print("Instruction received: ");
 
   for (int i=0;i<msgLength;i++) {
-    Serial.print(String(desired_wheel_theta[i])+"\t");
+    Serial.print(String(instruction[i])+"\t");
   }
   Serial.println("");
 }
