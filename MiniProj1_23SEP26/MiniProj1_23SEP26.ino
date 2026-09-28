@@ -144,17 +144,17 @@ void loop() {
     voltage[0] = Kp_vel * (angularVelocity_SP[0] - angularVelocity[0]);
     voltage[1] = Kp_vel * (angularVelocity_SP[1] - angularVelocity[1]);
 
-    for(int i = 0; i < 2; i++){
+    
     if(voltage[i] >= 8.0){
       voltage[i] = 8;
     } else if(voltage[i] <= -8.0){
       voltage[i] = -8;
     }
 
-    if (voltage > 0) {
+    if (voltage[i] > 0) {
       digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
       analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
-    } else if (voltage < 0) {
+    } else if (voltage[i] < 0) {
       digitalWrite(SIGN_PIN[i], !i ? HIGH : LOW);
       analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
     }
