@@ -1,1 +1,17 @@
-This is the repository for Group 3 in seed lab. The MiniProj1_23SEP26 is where the Arduino code is. That code receives communication from the PI in the form of a direction, and then it converts that direction into physical movement of the wheels. Combined_motor_odometry is the code for two B we have it here so that we could refrence it while doing the minipoject. The Animation folder is the matlab animation to map how the robot would move. 
+************************
+** Group Three ReadMe **
+************************
+
+
+This is the repository for Group 3 in seed lab. 
+
+The Arduino code for the first Mini Project can be found in MiniProj1_23SEP26. This project contains files to allow
+communication between a Arduino and a rasberry PI and to control two motors attached to the Arduino. The code intitates 
+movement in wheels controlled by the arduino corresponding to the location of an ArUco marker in the view of a camera 
+connected to the PI. 
+
+The Simulink folder contains matlab code and simulink models for simulating the motor control system and plotting our 
+simulation against experimental data.
+
+Combined_motor_odometry is the code for two B we have it here so that we could refrence it while doing the minipoject. The 
+Animation folder is the matlab animation to map how the robot would move. 
