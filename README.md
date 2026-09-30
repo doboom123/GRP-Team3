@@ -1,1 +1,1 @@
-This is the repository for Group 3 in seed lab. So far we have minor speed regulation and a way to track the robots movements.
+This is the repository for Group 3 in seed lab. The MiniProj1_23SEP26 is where the Arduino code is. That code receives communication from the PI in the form of a direction, and then it converts that direction into physical movement of the wheels. Combined_motor_odometry is the code for two B we have it here so that we could refrence it while doing the minipoject. The Animation folder is the matlab animation to map how the robot would move. 
