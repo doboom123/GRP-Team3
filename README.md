@@ -27,3 +27,7 @@ Animation folder is the matlab animation to map how the robot would move.
 ```bash
 The Animation folder hodls all of the files that are used to run the Matlab Animation that simulates how the robot would be moving in real time
 ```
+5. **Computer Vision**
+```bash
+The CV folder contains the necessary Python / C++ files that are used to implement real-time ArUco marker detection and establish I2C protocol between the Arduino and Raspberry Pi
+```
