@@ -4,12 +4,15 @@
 
 
 This is the repository for Group 3 in seed lab. 
+## files
 
+1. **MiniProj1_23SEP26**
+ ```bash
 The Arduino code for the first Mini Project can be found in MiniProj1_23SEP26. This project contains files to allow
-communication between a Arduino and a rasberry PI and to control two motors attached to the Arduino. The code intitates 
-movement in wheels controlled by the arduino corresponding to the location of an ArUco marker in the view of a camera 
+communication between an Arduino and a Raspberry Pi and to control two motors attached to the Arduino. The code initiates 
+movement in wheels controlled by the Arduino corresponding to the location of an ArUco marker in the view of a camera 
 connected to the PI. 
-
+ ```
 The Simulink folder contains matlab code and simulink models for simulating the motor control system and plotting our 
 simulation against experimental data.
 
