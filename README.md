@@ -13,8 +13,13 @@ communication between an Arduino and a Raspberry Pi and to control two motors at
 movement in wheels controlled by the Arduino corresponding to the location of an ArUco marker in the view of a camera 
 connected to the PI. 
  ```
+2. **Simulink**
+ ```bash
 The Simulink folder contains matlab code and simulink models for simulating the motor control system and plotting our 
 simulation against experimental data.
-
+```
+3. **Combined_motor_odometry**
+```bash
 Combined_motor_odometry is the code for two B we have it here so that we could refrence it while doing the minipoject. The 
 Animation folder is the matlab animation to map how the robot would move. 
+```
