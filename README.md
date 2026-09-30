@@ -23,3 +23,7 @@ simulation against experimental data.
 Combined_motor_odometry is the code for two B we have it here so that we could refrence it while doing the minipoject. The 
 Animation folder is the matlab animation to map how the robot would move. 
 ```
+4. **Animation**
+```bash
+The Animation folder hodls all of the files that are used to run the Matlab Animation that simulates how the robot would be moving in real time
+```
