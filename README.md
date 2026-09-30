@@ -25,5 +25,6 @@ Animation folder is the matlab animation to map how the robot would move.
 ```
 4. **Animation**
 ```bash
-The Animation folder hodls all of the files that are used to run the Matlab Animation that simulates how the robot would be moving in real time
+The Animation folder hodls all of the files that are used to run the
+Matlab Animation that simulates how the robot would be moving in real time
 ```
