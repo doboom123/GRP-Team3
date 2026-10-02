@@ -3,7 +3,7 @@
 #define PI 3.14
 
 // 09/25/2026
-// Derrick Scott Joao Vitor Peclat Fayad
+// Derrick Scott Joao Vitor Peclat Fayad Bode Lamb
 //
 // This code lets you set the positions of the wheels in 4 configurations
 // each wheel has a "top" considered to be 0, and a "bottom" considered to 
