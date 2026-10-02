@@ -170,7 +170,7 @@ void loop() {
     voltage[i] = Kp_vel * (angularVelocity_SP[i] - angularVelocity[i]);
 
     
-    // this calculates if we need positive or negarive voltage to get to the required postion
+    // this calculates if we need positive or negative voltage to get to the required postion
     if(voltage[i] >= 8.0){
       voltage[i] = 8;
       accumTheta[i] -= deltaTheta[i] * desired_Ts_ms;
@@ -179,6 +179,7 @@ void loop() {
       accumTheta[i] -= deltaTheta[i] * desired_Ts_ms;
     }
 
+    //this makes sure that if the voltage is negative it goes backwards and if it's positive it goes forwards.
     if (voltage[i] > 0) {
       digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
       analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
@@ -211,22 +212,7 @@ void loop() {
 
     
      
-      // ---- Print  ----
-      // Serial.print(current_time_ms);
-      // Serial.print("s \t");
-      // Serial.print(angularVelocity);
-      // Serial.print("\t");
-      // Serial.print(voltage);
-      // Serial.print("\t");
-      // Serial.print(thetaR);
-      // Serial.print("\tx=");
-      // Serial.print(x, 4);
-      // Serial.print("\ty=");
-      // Serial.print(y, 4);
-      // Serial.print("\tphi=");
-      // Serial.print(phi, 4);
-      // Serial.println("");
-
+      // Updates last time
       last_time_ms = current_time_ms;
 
   }
