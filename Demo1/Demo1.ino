@@ -75,8 +75,9 @@ const float Kp_vel = 2;
 // ---------------------------------------------------------------------
 
 // Movement
-float desiredPhi = 0; //Radians
+float desiredPhi = PI; //Radians
 float desiredDistance = 0; // Meters
+float phiError = 0; // radians
 
 
 void setup() {
@@ -158,7 +159,53 @@ void loop() {
         break;
     }
 
-  
+
+     // calculates linear velocity
+      linearVelocity[1] = angularVelocity[1] * radius;
+      linearVelocity[0] = angularVelocity[0] * radius;
+      // calculates change in time
+      dt = (float)(current_time_ms - last_time_ms) / 1000.0;
+      // calculates phi
+      phiVelocity = radius * ((angularVelocity[0] - angularVelcity[1])/ robotDiameter) * dt;
+      odometry[2] += ((linearVelocity[0] - linearVelocity[1]) / robotDiameter) * dt;
+      //calculates x
+      odometry[0] += cos(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
+      //calculates y
+      odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
+
+
+
+      phiError = desiredPhi - odometry[2];
+
+      if(phiError > 0){
+        voltage[0] = 4;
+        voltage[1] = -4;
+      }
+      if(phiError > 0){
+        voltage[0] = -4;
+        voltage[1] = 4;
+      }
+      else{
+        voltage[0] = 0;
+        voltage[1] = 0;
+      }
+
+    for(int i = 0; i < 2; i++){
+    //this makes sure that if the voltage is negative it goes backwards and if it's positive it goes forwards.
+    if (voltage[i] > 0) {
+      digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
+      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
+    } else if (voltage[i] < 0) {
+      digitalWrite(SIGN_PIN[i], !i ? HIGH : LOW);
+      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
+    }
+    else{
+      analogWrite(PWM_PINs[i], 0);
+    }
+    }
+    
+
+      
   // this for loop runs twice to make sure it does the same calculations for both wheels.
     for(int i = 0; i < 2; i++){
     
@@ -178,6 +225,7 @@ void loop() {
 
     
     // this calculates if we need positive or negative voltage to get to the required postion
+    /**
     if(voltage[i] >= 8.0){
       voltage[i] = 8;
       accumTheta[i] -= deltaTheta[i] * desired_Ts_ms;
@@ -197,25 +245,12 @@ void loop() {
     else{
       analogWrite(PWM_PINs[i], 0);
     }
+    **/
 
     }
 
 
 
-
-  
-      // calculates linear velocity
-      linearVelocity[1] = angularVelocity[1] * radius;
-      linearVelocity[0] = angularVelocity[0] * radius;
-      // calculates change in time
-      dt = (float)(current_time_ms - last_time_ms) / 1000.0;
-      // calculates phi
-      phiVelocity = radius * ((angularVelocity[0] - angularVelcity[1])/ robotDiameter) * dt;
-      odometry[2] += ((linearVelocity[0] - linearVelocity[1]) / robotDiameter) * dt;
-      //calculates x
-      odometry[0] += cos(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
-      //calculates y
-      odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
     
      
       // Updates last time
