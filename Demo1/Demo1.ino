@@ -61,6 +61,8 @@ float phi = 0;   // robot heading, rad
 float x = 0;     // robot x position, m
 float y = 0;     // robot y position, m
 float odometry[3] = {0,0,0}; // x, y, and phi. X and Y are in meters and phi is in radians.
+float phiVelocity = 0; //Rad/s
+float rVector = 0; // Meters;
 // ---------------------------------------------------------------------
 
 // Motor control 
@@ -71,6 +73,11 @@ const float Ki_pos = .8; //integral gain
 const float Kp_pos = 15; //proportional gain
 const float Kp_vel = 2;
 // ---------------------------------------------------------------------
+
+// Movement
+float desiredPhi = 0; //Radians
+float desiredDistance = 0; // Meters
+
 
 void setup() {
   //sets the encoder pins as inputs
@@ -197,19 +204,18 @@ void loop() {
 
 
   
-// ODOMETRY CODE NOT UPDATED FOR ARRAYS
       // calculates linear velocity
       linearVelocity[1] = angularVelocity[1] * radius;
       linearVelocity[0] = angularVelocity[0] * radius;
       // calculates change in time
       dt = (float)(current_time_ms - last_time_ms) / 1000.0;
       // calculates phi
+      phiVelocity = radius * ((angularVelocity[0] - angularVelcity[1])/ robotDiameter) * dt;
       odometry[2] += ((linearVelocity[0] - linearVelocity[1]) / robotDiameter) * dt;
       //calculates x
       odometry[0] += cos(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
       //calculates y
       odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
-
     
      
       // Updates last time
