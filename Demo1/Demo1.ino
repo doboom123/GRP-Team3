@@ -166,12 +166,16 @@ void loop() {
       // calculates change in time
       dt = (float)(current_time_ms - last_time_ms) / 1000.0;
       // calculates phi
-      phiVelocity = radius * ((angularVelocity[0] - angularVelcity[1])/ robotDiameter) * dt;
+      phiVelocity = radius * ((angularVelocity[0] - angularVelocity[1])/ robotDiameter) * dt;
       odometry[2] += ((linearVelocity[0] - linearVelocity[1]) / robotDiameter) * dt;
       //calculates x
       odometry[0] += cos(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
       //calculates y
       odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
+      Serial.print("DesiredPhi: ");
+      Serial.print(phiError);
+      Serial.print(" Phi: ");
+      Serial.println(odometry[2]);
 
 
 
@@ -181,7 +185,7 @@ void loop() {
         voltage[0] = 4;
         voltage[1] = -4;
       }
-      if(phiError > 0){
+      else if(phiError < 0){
         voltage[0] = -4;
         voltage[1] = 4;
       }
