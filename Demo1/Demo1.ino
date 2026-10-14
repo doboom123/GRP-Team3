@@ -75,10 +75,12 @@ const float Kp_vel = 2;
 // ---------------------------------------------------------------------
 
 // Movement
-float desiredPhi = PI; //Radians
+float desiredPhi = 0; //Radians
 float desiredDistance = 0; // Meters
 float phiError = 0; // radians
 float circumference = 2 * PI * radius;
+float phiSpeed = 0;
+float linearSpeed = 0;
 
 
 void setup() {
@@ -175,21 +177,8 @@ void loop() {
       odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
       
 
-
-      phiError = desiredPhi - odometry[2];
-
-      if(phiError > 0){
-        voltage[0] = 4;
-        voltage[1] = -4;
-      }
-      else if(phiError < 0){
-        voltage[0] = -4;
-        voltage[1] = 4;
-      }
-      else{
-        voltage[0] = 0;
-        voltage[1] = 0;
-      }
+    voltage[0] = 2;
+    voltage[1] = -2;
 
     for(int i = 0; i < 2; i++){
     //this makes sure that if the voltage is negative it goes backwards and if it's positive it goes forwards.
@@ -207,18 +196,20 @@ void loop() {
     
 
       
-
+  phiSpeed = (radius * (angularVelocity[0] - angularVelocity[1])/robotDiameter);
   desired_wheel_theta[0] = robotDiameter * PI * desiredPhi/circumference;
   desired_wheel_theta[1] = -desired_wheel_theta[0];
+  linearSpeed = (linearVelocity[0] - linearVelocity[1])/2;
+      Serial.print("Time: ");
+      Serial.print(current_time_ms);
+      Serial.print(" Phi: ");
+      Serial.print(odometry[2]);
+      Serial.print("Phi Speed");
+      Serial.print(phiSpeed);
+      Serial.print(" Linear Speed");
+      Serial.println(linearSpeed);
 
-      Serial.print("Theta Right: ");
-      Serial.print(desired_wheel_theta[0]);
-      Serial.print(" Theta Right : ");
-      Serial.print(theta[0]);
-      Serial.print(" Counter Right: ");
-      Serial.println(encoderCount[0]);
-
-
+  
   // this for loop runs twice to make sure it does the same calculations for both wheels.
     for(int i = 0; i < 2; i++){
     
@@ -238,7 +229,7 @@ void loop() {
 
     
     // this calculates if we need positive or negative voltage to get to the required postion
- 
+ /**
     if(voltage[i] >= 8.0){
       voltage[i] = 8;
       accumTheta[i] -= deltaTheta[i] * desired_Ts_ms;
@@ -259,7 +250,7 @@ void loop() {
       analogWrite(PWM_PINs[i], 0);
     }
  
-
+**/
     }
 
 
