@@ -130,7 +130,8 @@ void loop() {
   // this if occurs every 20 ms aka desired_Ts_ms
   if (current_time_ms - last_time_ms >= desired_Ts_ms) {
     // it receives the instructions and updates the wheel current position by 180 degrees depending on the instruction
-    
+    Serial.print(theta[0]);
+    Serial.print("\n");
     //Loops through the directions and switches the desired theta depending on the wanted position.
     switch(instruction[0]){
       case 0:
