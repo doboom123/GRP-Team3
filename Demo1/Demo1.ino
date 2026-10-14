@@ -78,6 +78,7 @@ const float Kp_vel = 2;
 float desiredPhi = PI; //Radians
 float desiredDistance = 0; // Meters
 float phiError = 0; // radians
+float circumference = 2 * PI * radius;
 
 
 void setup() {
@@ -172,11 +173,7 @@ void loop() {
       odometry[0] += cos(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
       //calculates y
       odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
-      Serial.print("DesiredPhi: ");
-      Serial.print(phiError);
-      Serial.print(" Phi: ");
-      Serial.println(odometry[2]);
-
+      
 
 
       phiError = desiredPhi - odometry[2];
@@ -210,6 +207,18 @@ void loop() {
     
 
       
+
+  desired_wheel_theta[0] = robotDiameter * PI * desiredPhi/circumference;
+  desired_wheel_theta[1] = -desired_wheel_theta[0];
+
+      Serial.print("Theta Right: ");
+      Serial.print(desired_wheel_theta[0]);
+      Serial.print(" Theta Right : ");
+      Serial.print(theta[0]);
+      Serial.print(" Counter Right: ");
+      Serial.println(encoderCount[0]);
+
+
   // this for loop runs twice to make sure it does the same calculations for both wheels.
     for(int i = 0; i < 2; i++){
     
@@ -229,7 +238,7 @@ void loop() {
 
     
     // this calculates if we need positive or negative voltage to get to the required postion
-    /**
+ 
     if(voltage[i] >= 8.0){
       voltage[i] = 8;
       accumTheta[i] -= deltaTheta[i] * desired_Ts_ms;
@@ -249,7 +258,7 @@ void loop() {
     else{
       analogWrite(PWM_PINs[i], 0);
     }
-    **/
+ 
 
     }
 
