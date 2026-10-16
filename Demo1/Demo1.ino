@@ -40,7 +40,7 @@ const int PWM_PINs[2] = {9, 10};
 // ---------------------------------------------------------------------
 
 // constants determined by the physical design
-const float radius = 0.0762;      // wheel radius, meters
+const float radius = 0.07381875;      // wheel radius, meters
 const float fullRotation = 3200;    // encoder counts per full wheel rotation
 const float robotDiameter = 0.3556;  // meters, distance between wheels
 // ---------------------------------------------------------------------
@@ -76,11 +76,15 @@ const float Kp_vel = 2;
 
 // Movement
 float desiredPhi = 0; //Radians
-float desiredDistance = 0; // Meters
+float desiredDistance = 1; // Meters
 float phiError = 0; // radians
 float circumference = 2 * PI * radius;
 float phiSpeed = 0;
 float linearSpeed = 0;
+float currentDistance = 0;
+bool turning = false;
+float preMag = 0;
+float distanceError = 0;
 
 
 void setup() {
@@ -132,8 +136,8 @@ void loop() {
 
   // updates the encoders and makes sure it's not interuptted during
   noInterrupts();
-  int localCountL = encoderCount[1];
-  int localCountR = encoderCount[0];
+  long localCountL = encoderCount[1];
+  long localCountR = encoderCount[0];
   interrupts();
   // calculates the current theta
   theta[0] = ((float)localCountR / (float)fullRotation) * 2 * PI;
@@ -175,6 +179,42 @@ void loop() {
       odometry[0] += cos(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
       //calculates y
       odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
+      
+      preMag = sq(odometry[0]) + sq(odometry[1]);
+
+      currentDistance = sqrt(preMag);
+
+
+    while(turning == false){
+      distanceError = desiredDistance - currentDistance;
+      if(distanceError > 0){
+        voltage[0] = 2;
+        voltage[1] = 2;
+      }
+      else if(distanceError < 0){
+        voltage[0] = -2;
+        voltage[1] = -2;
+      }
+      else{
+        voltage[0] = 0;
+        voltage[1] = 0;
+        break;
+      }
+
+    for(int i = 0; i < 2; i++){
+    //this makes sure that if the voltage is negative it goes backwards and if it's positive it goes forwards.
+    if (voltage[i] > 0) {
+      digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
+      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
+    } else if (voltage[i] < 0) {
+      digitalWrite(SIGN_PIN[i], !i ? HIGH : LOW);
+      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
+    }
+    else{
+      analogWrite(PWM_PINs[i], 0);
+    }
+    }
+  }
       
 
     voltage[0] = 2;
