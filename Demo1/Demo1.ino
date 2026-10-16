@@ -185,7 +185,7 @@ void loop() {
       currentDistance = sqrt(preMag);
 
 
-    while(turning == false){
+    if(turning == false){
       distanceError = desiredDistance - currentDistance;
       if(distanceError > 0){
         voltage[0] = 2;
