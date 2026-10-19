@@ -76,7 +76,7 @@ const float Kp_vel = 2;
 
 // Movement
 float desiredPhi = 0; //Radians
-float desiredDistance = 1; // Meters
+float desiredDistance = 4; // Meters
 float phiError = 0; // radians
 float circumference = 2 * PI * radius;
 float phiSpeed = 0;
@@ -146,25 +146,6 @@ void loop() {
   if (current_time_ms - last_time_ms >= desired_Ts_ms) {
     // it receives the instructions and updates the wheel current position by 180 degrees depending on the instruction
     
-    //Loops through the directions and switches the desired theta depending on the wanted position.
-    switch(instruction[0]){
-      case 0:
-        desired_wheel_theta[0] = 0;
-        desired_wheel_theta[1] = 0;
-        break;
-      case 1:
-        desired_wheel_theta[0] = PI;
-        desired_wheel_theta[1] = 0;
-        break;
-      case 2:
-        desired_wheel_theta[0] = PI;
-        desired_wheel_theta[1] = PI;
-        break;
-      case 3:
-        desired_wheel_theta[0] = 0;
-        desired_wheel_theta[1] = PI;
-        break;
-    }
 
 
      // calculates linear velocity
@@ -198,7 +179,6 @@ void loop() {
       else{
         voltage[0] = 0;
         voltage[1] = 0;
-        break;
       }
 
     for(int i = 0; i < 2; i++){
@@ -213,15 +193,8 @@ void loop() {
     else{
       analogWrite(PWM_PINs[i], 0);
     }
-    }
-  }
-      
+    
 
-    voltage[0] = 2;
-    voltage[1] = -2;
-
-    for(int i = 0; i < 2; i++){
-    //this makes sure that if the voltage is negative it goes backwards and if it's positive it goes forwards.
     if (voltage[i] > 0) {
       digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
       analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
@@ -232,14 +205,15 @@ void loop() {
     else{
       analogWrite(PWM_PINs[i], 0);
     }
-    }
+  }
+    }     
     
 
       
   phiSpeed = (radius * (angularVelocity[0] - angularVelocity[1])/robotDiameter);
   desired_wheel_theta[0] = robotDiameter * PI * desiredPhi/circumference;
   desired_wheel_theta[1] = -desired_wheel_theta[0];
-  linearSpeed = (linearVelocity[0] - linearVelocity[1])/2;
+  linearSpeed = (linearVelocity[0] + linearVelocity[1])/2;
       Serial.print("Time: ");
       Serial.print(current_time_ms);
       Serial.print(" Phi: ");
@@ -247,7 +221,7 @@ void loop() {
       Serial.print("Phi Speed");
       Serial.print(phiSpeed);
       Serial.print(" Linear Speed");
-      Serial.println(linearSpeed);
+      Serial.println(linearSpeed, 4);
 
   
   // this for loop runs twice to make sure it does the same calculations for both wheels.
@@ -265,7 +239,7 @@ void loop() {
     // this uses our gain to stabilize the angular velocity to something that we want
     angularVelocity_SP[i] = Ki_pos * accumTheta[i] + (Kp_pos * (deltaTheta[i]));
     // calculates the required voltage to spin the wheel at the right speed
-    voltage[i] = Kp_vel * (angularVelocity_SP[i] - angularVelocity[i]);
+    //voltage[i] = Kp_vel * (angularVelocity_SP[i] - angularVelocity[i]);
 
     
     // this calculates if we need positive or negative voltage to get to the required postion
