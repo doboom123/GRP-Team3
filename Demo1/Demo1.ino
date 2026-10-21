@@ -72,19 +72,27 @@ float DC_gain = 0.25;
 const float Ki_pos = .8; //integral gain
 const float Kp_pos = 15; //proportional gain
 const float Kp_vel = 2;
+// Wheel speed matching
+float Kp_sync = 0.5;          // volts per (rad/s) of speed difference
+float Ki_sync = 2.0;          // volts per (rad/s * s) of accumulated difference
+float syncIntegral = 0;
+float filteredDiff = 0;       // low-pass filtered speed difference
+const float syncAlpha = 0.3;  // 0-1, smaller = smoother but slower
+const float maxTrim = 1.5;    // max volts of correction
 // ---------------------------------------------------------------------
 
 // Movement
-float desiredPhi = 0; //Radians
-float desiredDistance = 4; // Meters
+float desiredPhi = PI; //Radians
+float desiredDistance = 2; // Meters
 float phiError = 0; // radians
 float circumference = 2 * PI * radius;
-float phiSpeed = 0;
 float linearSpeed = 0;
 float currentDistance = 0;
 bool turning = false;
 float preMag = 0;
 float distanceError = 0;
+float desiredSpeed = .25; //ms
+float speedError[2] = {0};
 
 
 void setup() {
@@ -121,6 +129,7 @@ void loop() {
   //starts the current time timer
   current_time_ms = millis();
 
+
 // checks to see if a message came in and prints it out if so
  if (msgLength > 0) {
   if (offset==1) {
@@ -145,86 +154,7 @@ void loop() {
   // this if occurs every 20 ms aka desired_Ts_ms
   if (current_time_ms - last_time_ms >= desired_Ts_ms) {
     // it receives the instructions and updates the wheel current position by 180 degrees depending on the instruction
-    
 
-
-     // calculates linear velocity
-      linearVelocity[1] = angularVelocity[1] * radius;
-      linearVelocity[0] = angularVelocity[0] * radius;
-      // calculates change in time
-      dt = (float)(current_time_ms - last_time_ms) / 1000.0;
-      // calculates phi
-      phiVelocity = radius * ((angularVelocity[0] - angularVelocity[1])/ robotDiameter) * dt;
-      odometry[2] += ((linearVelocity[0] - linearVelocity[1]) / robotDiameter) * dt;
-      //calculates x
-      odometry[0] += cos(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
-      //calculates y
-      odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
-      
-      preMag = sq(odometry[0]) + sq(odometry[1]);
-
-      currentDistance = sqrt(preMag);
-
-
-    if(turning == false){
-      distanceError = desiredDistance - currentDistance;
-      if(distanceError > 0){
-        voltage[0] = 2;
-        voltage[1] = 2;
-      }
-      else if(distanceError < 0){
-        voltage[0] = -2;
-        voltage[1] = -2;
-      }
-      else{
-        voltage[0] = 0;
-        voltage[1] = 0;
-      }
-
-    for(int i = 0; i < 2; i++){
-    //this makes sure that if the voltage is negative it goes backwards and if it's positive it goes forwards.
-    if (voltage[i] > 0) {
-      digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
-      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
-    } else if (voltage[i] < 0) {
-      digitalWrite(SIGN_PIN[i], !i ? HIGH : LOW);
-      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
-    }
-    else{
-      analogWrite(PWM_PINs[i], 0);
-    }
-    
-
-    if (voltage[i] > 0) {
-      digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
-      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
-    } else if (voltage[i] < 0) {
-      digitalWrite(SIGN_PIN[i], !i ? HIGH : LOW);
-      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
-    }
-    else{
-      analogWrite(PWM_PINs[i], 0);
-    }
-  }
-    }     
-    
-
-      
-  phiSpeed = (radius * (angularVelocity[0] - angularVelocity[1])/robotDiameter);
-  desired_wheel_theta[0] = robotDiameter * PI * desiredPhi/circumference;
-  desired_wheel_theta[1] = -desired_wheel_theta[0];
-  linearSpeed = (linearVelocity[0] + linearVelocity[1])/2;
-      Serial.print("Time: ");
-      Serial.print(current_time_ms);
-      Serial.print(" Phi: ");
-      Serial.print(odometry[2]);
-      Serial.print("Phi Speed");
-      Serial.print(phiSpeed);
-      Serial.print(" Linear Speed");
-      Serial.println(linearSpeed, 4);
-
-  
-  // this for loop runs twice to make sure it does the same calculations for both wheels.
     for(int i = 0; i < 2; i++){
     
     //this calculates the error  in theta
@@ -266,6 +196,108 @@ void loop() {
  
 **/
     }
+    
+
+
+     // calculates linear velocity
+      linearVelocity[1] = angularVelocity[1] * radius;
+      linearVelocity[0] = angularVelocity[0] * radius;
+      // calculates change in time
+      dt = (float)(current_time_ms - last_time_ms) / 1000.0;
+      // calculates phi
+      phiVelocity = radius * ((angularVelocity[0] - angularVelocity[1])/ robotDiameter) * dt;
+      odometry[2] += ((linearVelocity[0] - linearVelocity[1]) / robotDiameter) * dt;
+      //calculates x
+      odometry[0] += cos(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
+      //calculates y
+      odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
+      
+      preMag = sq(odometry[0]) + sq(odometry[1]);
+
+      currentDistance = sqrt(preMag);
+
+
+      if (turning == true) {
+        phiError = desiredPhi - odometry[2];
+
+        if (abs(phiError) < 0.03) {          // within ~1.7 degrees of target
+          voltage[0] = 0;
+          voltage[1] = 0;
+          desiredPhi = 0;
+          odometry[2] = 0;
+          turning = false;
+        }
+        else if (phiError < 0) {             // overshot, turn back
+          voltage[0] = 1;
+          voltage[1] = -1;
+        }
+        else {                               // still need to turn
+          voltage[0] = -1;
+          voltage[1] = 1;
+        }
+      }
+
+      distanceError = desiredDistance - currentDistance;
+      
+
+
+
+
+    for(int i = 0; i < 2; i++){
+     // --- 1. Decide base voltages ---
+    if (turning == false) {
+      voltage[0] = 2;
+      voltage[1] = 2;
+    }
+
+// --- 2. Match wheel speeds (only when driving straight) ---
+if (turning == false) {
+  matchWheelSpeeds(dt);
+}
+
+// --- 3. Write to motors ---
+for (int i = 0; i < 2; i++) {
+  if (voltage[i] > 0) {
+    digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
+    analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
+  } else if (voltage[i] < 0) {
+    digitalWrite(SIGN_PIN[i], !i ? HIGH : LOW);
+    analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
+  } else {
+    analogWrite(PWM_PINs[i], 0);
+  }
+}
+
+    if (voltage[i] > 0) {
+      digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
+      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
+    } else if (voltage[i] < 0) {
+      digitalWrite(SIGN_PIN[i], !i ? HIGH : LOW);
+      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
+    }
+    else{
+      analogWrite(PWM_PINs[i], 0);
+    }
+  }
+  
+    
+
+      
+  desired_wheel_theta[0] = robotDiameter * PI * desiredPhi/circumference;
+  desired_wheel_theta[1] = -desired_wheel_theta[0];
+  linearSpeed = (linearVelocity[0] + linearVelocity[1])/2;
+      Serial.print("Time: ");
+      Serial.print(current_time_ms);
+      Serial.print(" Phi: ");
+      Serial.print(odometry[2]);
+      Serial.print("Phi Speed");
+      Serial.print(linearVelocity[0],4);
+      Serial.print(" Linear Speed");
+      Serial.println(linearVelocity[1], 4);
+
+  
+  // this for loop runs twice to make sure it does the same calculations for both wheels.
+    
 
 
 
@@ -273,13 +305,13 @@ void loop() {
      
       // Updates last time
       last_time_ms = current_time_ms;
-
+  }
   }
 
 
     
 
-} 
+
 
 // ---------------------------------------------------------------------
 // Encoder ISRs 
@@ -328,4 +360,32 @@ while (Wire.available()) {
 instruction[msgLength] = Wire.read();
 msgLength++;
 }
+}
+
+// Trims voltage[0] and voltage[1] so both wheels spin at the same speed.
+// Call after the base voltages are set and before writing to the motors.
+void matchWheelSpeeds(float dt) {
+  // Only correct when both wheels are commanded in the same direction
+  // (i.e., driving straight). Otherwise reset and do nothing.
+  if (voltage[0] == 0 || voltage[1] == 0 || (voltage[0] > 0) != (voltage[1] > 0)) {
+    syncIntegral = 0;
+    filteredDiff = 0;
+    return;
+  }
+
+  // Positive diff = right wheel faster. Both wheels' speeds are signed the
+  // same way when driving straight, so this works forward and backward.
+  float diff = angularVelocity[0] - angularVelocity[1];
+  filteredDiff += syncAlpha * (diff - filteredDiff);
+
+  syncIntegral += filteredDiff * dt;
+  syncIntegral = constrain(syncIntegral, -2.0, 2.0);   // anti-windup
+
+  float trim = Kp_sync * filteredDiff + Ki_sync * syncIntegral;
+  trim = constrain(trim, -maxTrim, maxTrim);
+
+  // Slow down the faster wheel and speed up the slower one
+  float dir = (voltage[0] > 0) ? 1.0 : -1.0;
+  voltage[0] -= dir * trim / 2.0;
+  voltage[1] += dir * trim / 2.0;
 }
