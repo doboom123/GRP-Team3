@@ -1,6 +1,5 @@
 #include <Wire.h>
 #define MY_ADDR 8
-#define PI 3.14
 
 // 09/25/2026
 // Derrick Scott Joao Vitor Peclat Fayad Bode Lamb
@@ -42,7 +41,7 @@ const int PWM_PINs[2] = {9, 10};
 // constants determined by the physical design
 const float radius = 0.07381875;      // wheel radius, meters
 const float fullRotation = 3200;    // encoder counts per full wheel rotation
-const float robotDiameter = 0.3556;  // meters, distance between wheels
+const float robotDiameter = 0.358775;  // meters, distance between wheels
 // ---------------------------------------------------------------------
 
 // Position / velocity (angular, per-wheel)
@@ -72,28 +71,25 @@ float DC_gain = 0.25;
 const float Ki_pos = .8; //integral gain
 const float Kp_pos = 15; //proportional gain
 const float Kp_vel = 2;
-// Wheel speed matching
-float Kp_sync = 0.5;          // volts per (rad/s) of speed difference
-float Ki_sync = 2.0;          // volts per (rad/s * s) of accumulated difference
-float syncIntegral = 0;
-float filteredDiff = 0;       // low-pass filtered speed difference
-const float syncAlpha = 0.3;  // 0-1, smaller = smoother but slower
-const float maxTrim = 1.5;    // max volts of correction
 // ---------------------------------------------------------------------
 
 // Movement
-float desiredPhi = PI; //Radians
-float desiredDistance = 2; // Meters
+float desiredPhi = PI/2; //Radians
+float desiredDistance = 0; // Meters
 float phiError = 0; // radians
 float circumference = 2 * PI * radius;
+float phiSpeed = 0;
 float linearSpeed = 0;
 float currentDistance = 0;
-bool turning = false;
+bool turning = true;
 float preMag = 0;
 float distanceError = 0;
-float desiredSpeed = .25; //ms
-float speedError[2] = {0};
-
+const float Kp_phi = 8.0 / PI;   // proportional gain, V/rad (same as your old 8/PI)
+const float Ki_phi = 8;        // integral gain, V/(rad*s). Start small, tune up.
+float phiErrorAccum = 0;         // accumulated heading error, rad*s
+const float maxVoltage = 8.0;    // saturation limit, V
+const float phiDeadband = 0.02;  // rad (~1 degree). Inside this, motors stop.
+const float minVoltage = 1.2;
 
 void setup() {
   //sets the encoder pins as inputs
@@ -129,7 +125,6 @@ void loop() {
   //starts the current time timer
   current_time_ms = millis();
 
-
 // checks to see if a message came in and prints it out if so
  if (msgLength > 0) {
   if (offset==1) {
@@ -154,7 +149,100 @@ void loop() {
   // this if occurs every 20 ms aka desired_Ts_ms
   if (current_time_ms - last_time_ms >= desired_Ts_ms) {
     // it receives the instructions and updates the wheel current position by 180 degrees depending on the instruction
+    
+    angularVelocity[0] = 1000.0 * (theta[0] - prevTheta[0]) / (float)(current_time_ms - last_time_ms);
+    angularVelocity[1] = 1000.0 * (theta[1] - prevTheta[1]) / (float)(current_time_ms - last_time_ms);
 
+     // calculates linear velocity
+      linearVelocity[1] = angularVelocity[1] * radius;
+      linearVelocity[0] = angularVelocity[0] * radius;
+      // calculates change in time
+      dt = (float)(current_time_ms - last_time_ms) / 1000.0;
+      // calculates phi
+      phiVelocity = radius * ((angularVelocity[0] - angularVelocity[1])/ robotDiameter) * dt;
+      odometry[2] += ((linearVelocity[0] - linearVelocity[1]) / robotDiameter) * dt;
+      //calculates x
+      odometry[0] += cos(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
+      //calculates y
+      odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
+      
+      preMag = sq(odometry[0]) + sq(odometry[1]);
+
+      currentDistance = sqrt(preMag);
+
+      phiError = desiredPhi - odometry[2];
+
+
+      if (turning) {
+        if (abs(phiError) < phiDeadband) {
+          // close enough: stop and clear the integrator
+          voltage[0] = 0;
+          voltage[1] = 0;
+          phiErrorAccum = 0;
+        } else {
+          // integrate error (dt is in seconds so units are consistent)
+          phiErrorAccum += phiError * dt;
+ 
+          float u = Kp_phi * phiError + Ki_phi * phiErrorAccum;
+ 
+          // saturate, and undo this step's accumulation so the integral
+          // doesn't wind up while the motors are maxed out
+          if (u > maxVoltage) {
+            u = maxVoltage;
+            phiErrorAccum -= phiError * dt;
+          } else if (u < -maxVoltage) {
+            u = -maxVoltage;
+            phiErrorAccum -= phiError * dt;
+          }
+
+          if (u > 0 && u < minVoltage) {
+            u = minVoltage;
+          } else if (u < 0 && u > -minVoltage) {
+            u = -minVoltage;
+          }
+ 
+          voltage[0] =  u;
+          voltage[1] = -u;
+        }
+      }
+ 
+      // CHANGED: the loop below now only handles direction + PWM.
+      // The old "if abs(voltage) <= 1.2, force to +/-1.2" floor was removed
+      // because it fights the integral term. The integral will now ramp the
+      // voltage up on its own to overcome stiction. If the robot stalls just
+      // short of the target, raise Ki_phi (or shrink phiDeadband).
+      for(int i = 0; i < 2; i++){
+        //this makes sure that if the voltage is negative it goes backwards and if it's positive it goes forwards.
+        if (voltage[i] > 0) {
+          digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
+          analogWrite(PWM_PINs[i], (abs(voltage[i]) / maxVoltage * 255));
+        } else if (voltage[i] < 0) {
+          digitalWrite(SIGN_PIN[i], !i ? HIGH : LOW);
+          analogWrite(PWM_PINs[i], (abs(voltage[i]) / maxVoltage * 255));
+        }
+        else{
+          analogWrite(PWM_PINs[i], 0);
+        }
+      }
+      
+    
+
+      
+  phiSpeed = (radius * (angularVelocity[0] - angularVelocity[1])/robotDiameter);
+  desired_wheel_theta[0] = robotDiameter * PI * desiredPhi/circumference;
+  desired_wheel_theta[1] = -desired_wheel_theta[0];
+  linearSpeed = (linearVelocity[0] + linearVelocity[1])/2;
+      Serial.print("Error: ");
+      Serial.print(phiError);
+      Serial.print(" Phi: ");
+      Serial.print(odometry[2]);
+      Serial.print("Volt0");
+      Serial.print(voltage[0]);
+      Serial.print("Volt1");
+      Serial.println(voltage[1]);
+
+  
+  // this for loop runs twice to make sure it does the same calculations for both wheels.
     for(int i = 0; i < 2; i++){
     
     //this calculates the error  in theta
@@ -163,7 +251,6 @@ void loop() {
     accumTheta[i] += deltaTheta[i] * desired_Ts_ms;
 
     // calculates the current velocity
-    angularVelocity[i] = 1000.0 * (theta[i] - prevTheta[i]) / (float)(current_time_ms - last_time_ms);
     //sets previous theta to current theta after we dont need it
     prevTheta[i] = theta[i];
     // this uses our gain to stabilize the angular velocity to something that we want
@@ -196,108 +283,6 @@ void loop() {
  
 **/
     }
-    
-
-
-     // calculates linear velocity
-      linearVelocity[1] = angularVelocity[1] * radius;
-      linearVelocity[0] = angularVelocity[0] * radius;
-      // calculates change in time
-      dt = (float)(current_time_ms - last_time_ms) / 1000.0;
-      // calculates phi
-      phiVelocity = radius * ((angularVelocity[0] - angularVelocity[1])/ robotDiameter) * dt;
-      odometry[2] += ((linearVelocity[0] - linearVelocity[1]) / robotDiameter) * dt;
-      //calculates x
-      odometry[0] += cos(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
-      //calculates y
-      odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
-      
-      preMag = sq(odometry[0]) + sq(odometry[1]);
-
-      currentDistance = sqrt(preMag);
-
-
-      if (turning == true) {
-        phiError = desiredPhi - odometry[2];
-
-        if (abs(phiError) < 0.03) {          // within ~1.7 degrees of target
-          voltage[0] = 0;
-          voltage[1] = 0;
-          desiredPhi = 0;
-          odometry[2] = 0;
-          turning = false;
-        }
-        else if (phiError < 0) {             // overshot, turn back
-          voltage[0] = 1;
-          voltage[1] = -1;
-        }
-        else {                               // still need to turn
-          voltage[0] = -1;
-          voltage[1] = 1;
-        }
-      }
-
-      distanceError = desiredDistance - currentDistance;
-      
-
-
-
-
-    for(int i = 0; i < 2; i++){
-     // --- 1. Decide base voltages ---
-    if (turning == false) {
-      voltage[0] = 2;
-      voltage[1] = 2;
-    }
-
-// --- 2. Match wheel speeds (only when driving straight) ---
-if (turning == false) {
-  matchWheelSpeeds(dt);
-}
-
-// --- 3. Write to motors ---
-for (int i = 0; i < 2; i++) {
-  if (voltage[i] > 0) {
-    digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
-    analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
-  } else if (voltage[i] < 0) {
-    digitalWrite(SIGN_PIN[i], !i ? HIGH : LOW);
-    analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
-  } else {
-    analogWrite(PWM_PINs[i], 0);
-  }
-}
-
-    if (voltage[i] > 0) {
-      digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
-      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
-    } else if (voltage[i] < 0) {
-      digitalWrite(SIGN_PIN[i], !i ? HIGH : LOW);
-      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
-    }
-    else{
-      analogWrite(PWM_PINs[i], 0);
-    }
-  }
-  
-    
-
-      
-  desired_wheel_theta[0] = robotDiameter * PI * desiredPhi/circumference;
-  desired_wheel_theta[1] = -desired_wheel_theta[0];
-  linearSpeed = (linearVelocity[0] + linearVelocity[1])/2;
-      Serial.print("Time: ");
-      Serial.print(current_time_ms);
-      Serial.print(" Phi: ");
-      Serial.print(odometry[2]);
-      Serial.print("Phi Speed");
-      Serial.print(linearVelocity[0],4);
-      Serial.print(" Linear Speed");
-      Serial.println(linearVelocity[1], 4);
-
-  
-  // this for loop runs twice to make sure it does the same calculations for both wheels.
-    
 
 
 
@@ -305,13 +290,13 @@ for (int i = 0; i < 2; i++) {
      
       // Updates last time
       last_time_ms = current_time_ms;
-  }
+
   }
 
 
     
 
-
+} 
 
 // ---------------------------------------------------------------------
 // Encoder ISRs 
@@ -360,32 +345,4 @@ while (Wire.available()) {
 instruction[msgLength] = Wire.read();
 msgLength++;
 }
-}
-
-// Trims voltage[0] and voltage[1] so both wheels spin at the same speed.
-// Call after the base voltages are set and before writing to the motors.
-void matchWheelSpeeds(float dt) {
-  // Only correct when both wheels are commanded in the same direction
-  // (i.e., driving straight). Otherwise reset and do nothing.
-  if (voltage[0] == 0 || voltage[1] == 0 || (voltage[0] > 0) != (voltage[1] > 0)) {
-    syncIntegral = 0;
-    filteredDiff = 0;
-    return;
-  }
-
-  // Positive diff = right wheel faster. Both wheels' speeds are signed the
-  // same way when driving straight, so this works forward and backward.
-  float diff = angularVelocity[0] - angularVelocity[1];
-  filteredDiff += syncAlpha * (diff - filteredDiff);
-
-  syncIntegral += filteredDiff * dt;
-  syncIntegral = constrain(syncIntegral, -2.0, 2.0);   // anti-windup
-
-  float trim = Kp_sync * filteredDiff + Ki_sync * syncIntegral;
-  trim = constrain(trim, -maxTrim, maxTrim);
-
-  // Slow down the faster wheel and speed up the slower one
-  float dir = (voltage[0] > 0) ? 1.0 : -1.0;
-  voltage[0] -= dir * trim / 2.0;
-  voltage[1] += dir * trim / 2.0;
 }
