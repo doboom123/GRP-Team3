@@ -72,8 +72,8 @@ const float Kp_vel = 2;
 // ---------------------------------------------------------------------
 
 // Movement
-float desiredPhi = 0; //Radians
-float desiredDistance = 2.286; // Meters
+float desiredPhi = 0 * PI / 180; //Degrees converted to radians
+float desiredDistance = 3 / 3.28084; // feet converted to Meters
 float phiError = 0; // radians
 float circumference = 2 * PI * radius;
 float linearSpeed = 0;
@@ -167,6 +167,7 @@ void loop() {
     for(int i = 0; i < 2; i++){
     desired_wheel_theta[i] = (desiredDistance * 2 * PI)/circumference;
     }}
+  
   linearSpeed = (linearVelocity[0] - linearVelocity[1])/2;
 
   // this for loop runs twice to make sure it does the same calculations for both wheels.
@@ -192,8 +193,7 @@ void loop() {
       voltage[i] = -4;
       accumTheta[i] -= deltaTheta[i] * desired_Ts_ms;
     }
-
-        voltage[i] += (i ? -1 : 1) * (angularVelocity[1] - angularVelocity[0]);
+    if(abs(theta[i] - desired_wheel_theta[i]) > 0.1){ voltage[i] += (i ? -1 : 1) * (angularVelocity[1] - angularVelocity[0]);}
         }
     else{
         if(voltage[i] >= 2.0){

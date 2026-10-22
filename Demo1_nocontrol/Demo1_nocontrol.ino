@@ -74,8 +74,8 @@ const float Kp_vel = 2;
 // ---------------------------------------------------------------------
 
 // Movement
-float desiredPhi = 1.57; //Radians
-float desiredDistance = 1.8288; // Meters
+float desiredPhi = 0 * PI / 180; //Degrees converted to radians
+float desiredDistance = 3 / 3.28084; // feet converted to Meters
 float phiError = 0; // radians
 float circumference = 2 * PI * radius;
 float phiSpeed = 0;
