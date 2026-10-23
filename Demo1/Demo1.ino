@@ -4,100 +4,117 @@
 // 09/25/2026
 // Derrick Scott Joao Vitor Peclat Fayad Bode Lamb
 //
-// This code lets you set the positions of the wheels in 4 configurations
-// each wheel has a "top" considered to be 0, and a "bottom" considered to 
-// be 1.
+// Turn in place by desiredPhi, then drive desiredDistance.
+// Right wheel = index 0, left wheel = index 1.
 //
-//
-//for arrays we made the right wheel 0 and the left wheel one
+// CHANGES FROM PREVIOUS VERSION
+//  1. The turn -> drive switch is now based on the wheels actually finishing the
+//     turn (settled), not on a fixed 5 s timer. Big turns (>180 deg) no longer
+//     get cut off.
+//  2. encoderCount is read into a long (int is only 16 bits on an Uno/Nano).
+//  3. Added a cross-coupled wheel sync trim that works in BOTH the turn and
+//     drive phases, replacing the old "voltage += velocity difference" hack.
+//  4. Removed the duplicate motor write that used last cycle's stale voltage.
 
 // Timing
 unsigned long desired_Ts_ms = 20;   // sample period, ms
 unsigned long last_time_ms;
 unsigned long start_time_ms;
-long current_time_ms = 0;             // seconds since start
+unsigned long current_time_ms = 0;
 float dt = 0;                       // seconds, sample period as a float
 // ---------------------------------------------------------------------
 
 //PI Communication this is all communication stuff from the tutorial
-volatile uint8_t offset = 0; 
+volatile uint8_t offset = 0;
 volatile uint8_t instruction[32] = {0};
 volatile uint8_t msgLength = 0;
 // ---------------------------------------------------------------------
 
 // Encoder pins
-const int encoderApinR = 2;   // was RencApin / encoderAR
-const int encoderBpinR = 5;   // was RencBpin / encoderBR
-const int encoderApinL = 3;   // was LencApin / encoderAL
-const int encoderBpinL = 6;   // was LencBpin / encoderBL
+const int encoderApinR = 2;
+const int encoderBpinR = 5;
+const int encoderApinL = 3;
+const int encoderBpinL = 6;
 // ---------------------------------------------------------------------
 
 // Motor driver pins
-const int STBY_PIN = 4; 
+const int STBY_PIN = 4;
 const int SIGN_PIN[2] = {7, 8};
 const int PWM_PINs[2] = {9, 10};
 // ---------------------------------------------------------------------
 
 // constants determined by the physical design
-const float radius = 0.07381875;      // wheel radius, meters
-const float fullRotation = 3200;    // encoder counts per full wheel rotation
+const float radius = 0.07381875;       // wheel radius, meters
+const float fullRotation = 3200;       // encoder counts per full wheel rotation
 const float robotDiameter = 0.358775;  // meters, distance between wheels
 // ---------------------------------------------------------------------
 
 // Position / velocity (angular, per-wheel)
 volatile long encoderCount[2] = {0, 0};
-float desired_wheel_theta[2] = {0 , 0}; //rad
-float theta[2] = {0, 0};                     // rad
-float prevTheta[2];     // rad
-float angularVelocity[2];  // rad/s
-float linearVelocity[2];    // m/s (= angular * radius)
-float deltaTheta[2] = {0,0}; // change in theta
-float accumTheta[2] = {0,0}; //the acumulated change in theta
+float desired_wheel_theta[2] = {0, 0}; // rad
+float theta[2] = {0, 0};               // rad
+float prevTheta[2] = {0, 0};           // rad
+float angularVelocity[2] = {0, 0};     // rad/s
+float linearVelocity[2] = {0, 0};      // m/s
+float deltaTheta[2] = {0, 0};          // position error
+float accumTheta[2] = {0, 0};          // accumulated position error
 // ---------------------------------------------------------------------
 
-// Odometry 
-float phi = 0;   // robot heading, rad
-float x = 0;     // robot x position, m
-float y = 0;     // robot y position, m
-float odometry[3] = {0,0,0}; // x, y, and phi. X and Y are in meters and phi is in radians.
-float phiVelocity = 0; //Rad/s
-float rVector = 0; // Meters;
+// Odometry
+float odometry[3] = {0, 0, 0}; // x, y (m) and phi (rad)
+float phiVelocity = 0;         // rad/s
 // ---------------------------------------------------------------------
 
-// Motor control 
-float angularVelocity_SP[2];   //angular velocity setpoint, rad/s
-float voltage[2];             // set directly to bypass velocity control
-float DC_gain = 0.25;
-const float Ki_pos = .8; //integral gain
-const float Kp_pos = 15; //proportional gain
+// Motor control
+float angularVelocity_SP[2];   // angular velocity setpoint, rad/s
+float voltage[2] = {0, 0};
+const float Ki_pos = .25;      // integral gain
+const float Kp_pos = 15;       // proportional gain
 const float Kp_vel = 2;
+
+const float turnVoltLimit  = 3.0;  // V clamp while turning (was 2.0; raised to get past motor deadband)
+const float driveVoltLimit = 4.0;  // V clamp while driving
+
+// Wheel sync (cross-coupling) tuning
+const float Ksync   = 5.0;   // V per rad of wheel-progress mismatch
+const float maxTrim = 0.5;   // V, largest correction applied to each wheel (lowered so sync can't stall a wheel)
 // ---------------------------------------------------------------------
 
 // Movement
-float desiredPhi = PI/2; //Radians
-float desiredDistance = 0; // Meters
-float phiError = 0; // radians
-float circumference = 2 * PI * radius;
-float phiSpeed = 0;
-float linearSpeed = 0;
-float currentDistance = 0;
-bool turning = true;
-float preMag = 0;
-float distanceError = 0;
-const float Kp_phi = 8.0 / PI;   // proportional gain, V/rad (same as your old 8/PI)
-const float Ki_phi = 8;        // integral gain, V/(rad*s). Start small, tune up.
-float phiErrorAccum = 0;         // accumulated heading error, rad*s
-const float maxVoltage = 8.0;    // saturation limit, V
-const float phiDeadband = 0.02;  // rad (~1 degree). Inside this, motors stop.
-const float minVoltage = 1.2;
+float desiredPhi = 0 * PI / 180;          // degrees converted to radians
+float desiredDistance = 9 / 3.28084;        // feet converted to meters
+
+enum MoveState { TURNING, ZEROING, DRIVING };
+MoveState moveState = TURNING;
+
+// "Turn finished" detection
+const float settlePosTol = 0.05;            // rad of wheel position error
+const float settleVelTol = 0.2;             // rad/s
+const unsigned long settleHold_ms = 200;    // must stay settled this long
+const unsigned long turnTimeout_ms = 20000; // give up on turn after this long
+bool settling = false;
+unsigned long settleStart_ms = 0;
+// ---------------------------------------------------------------------
+
+void setMotor(int i, float v) {
+  // negative voltage = backwards, positive = forwards
+  if (v > 0) {
+    digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
+    analogWrite(PWM_PINs[i], constrain((int)(fabs(v) / 8.0 * 255), 0, 255));
+  } else if (v < 0) {
+    digitalWrite(SIGN_PIN[i], !i ? HIGH : LOW);
+    analogWrite(PWM_PINs[i], constrain((int)(fabs(v) / 8.0 * 255), 0, 255));
+  } else {
+    analogWrite(PWM_PINs[i], 0);
+  }
+}
 
 void setup() {
-  //sets the encoder pins as inputs
   pinMode(encoderApinR, INPUT_PULLUP);
   pinMode(encoderBpinR, INPUT_PULLUP);
   pinMode(encoderApinL, INPUT_PULLUP);
   pinMode(encoderBpinL, INPUT_PULLUP);
-  //sets the motor pins as outputs
+
   pinMode(STBY_PIN, OUTPUT);
   pinMode(SIGN_PIN[0], OUTPUT);
   pinMode(SIGN_PIN[1], OUTPUT);
@@ -105,201 +122,148 @@ void setup() {
   pinMode(PWM_PINs[1], OUTPUT);
 
   digitalWrite(STBY_PIN, LOW);
-// creates the interupts for the interrupts
+
   attachInterrupt(digitalPinToInterrupt(encoderApinR), encoderISR_R, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encoderApinL), encoderISR_L, CHANGE);
 
-  // Initialize I2C
-  Wire.begin(MY_ADDR);
-  // Set callbacks for I2C interrupts
-  Wire.onReceive(receive);
-
-  // sets the baudrate and starts the interval timer we'll be using for odometry
   Serial.begin(115200);
   last_time_ms = millis();
   start_time_ms = last_time_ms;
   Serial.println("");
+  Serial.println("Robot started");
 }
 
 void loop() {
-  //starts the current time timer
   current_time_ms = millis();
-
-// checks to see if a message came in and prints it out if so
- if (msgLength > 0) {
-  if (offset==1) {
-    digitalWrite(LED_BUILTIN,instruction[0]);
-  }
-  printReceived();
-  msgLength = 0;
-  }
-
-
-  // writes to the standby pin
   digitalWrite(STBY_PIN, HIGH);
 
-  // updates the encoders and makes sure it's not interuptted during
+  // read encoders without being interrupted (long, NOT int)
   noInterrupts();
   long localCountL = encoderCount[1];
   long localCountR = encoderCount[0];
   interrupts();
-  // calculates the current theta
-  theta[0] = ((float)localCountR / (float)fullRotation) * 2 * PI;
-  theta[1] = ((float)localCountL / (float)fullRotation) * 2 * PI;
-  // this if occurs every 20 ms aka desired_Ts_ms
+
+  theta[0] = ((float)localCountR / fullRotation) * 2 * PI;
+  theta[1] = ((float)localCountL / fullRotation) * 2 * PI;
+
+  // runs every desired_Ts_ms
   if (current_time_ms - last_time_ms >= desired_Ts_ms) {
-    // it receives the instructions and updates the wheel current position by 180 degrees depending on the instruction
-    
-    angularVelocity[0] = 1000.0 * (theta[0] - prevTheta[0]) / (float)(current_time_ms - last_time_ms);
-    angularVelocity[1] = 1000.0 * (theta[1] - prevTheta[1]) / (float)(current_time_ms - last_time_ms);
+    float elapsed_ms = (float)(current_time_ms - last_time_ms);
+    dt = elapsed_ms / 1000.0;
 
-     // calculates linear velocity
-      linearVelocity[1] = angularVelocity[1] * radius;
-      linearVelocity[0] = angularVelocity[0] * radius;
-      // calculates change in time
-      dt = (float)(current_time_ms - last_time_ms) / 1000.0;
-      // calculates phi
-      phiVelocity = radius * ((angularVelocity[0] - angularVelocity[1])/ robotDiameter) * dt;
-      odometry[2] += ((linearVelocity[0] - linearVelocity[1]) / robotDiameter) * dt;
-      //calculates x
-      odometry[0] += cos(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
-      //calculates y
-      odometry[1] += sin(odometry[2]) * (linearVelocity[1] + linearVelocity[0]) / 2 * dt;
-      
-      preMag = sq(odometry[0]) + sq(odometry[1]);
+    // velocities
+    for (int i = 0; i < 2; i++) {
+      angularVelocity[i] = (theta[i] - prevTheta[i]) / dt;
+      linearVelocity[i] = angularVelocity[i] * radius;
+    }
 
-      currentDistance = sqrt(preMag);
+    // odometry
+    phiVelocity = radius * ((angularVelocity[0] - angularVelocity[1]) / robotDiameter);
+    odometry[2] += ((linearVelocity[0] - linearVelocity[1]) / robotDiameter) * dt;
+    float v = (linearVelocity[0] + linearVelocity[1]) / 2;
+    odometry[0] += cos(odometry[2]) * v * dt;
+    odometry[1] += sin(odometry[2]) * v * dt;
 
-      phiError = desiredPhi - odometry[2];
+    // ---------------- movement state machine ----------------
+    if (moveState == TURNING) {
+      // each wheel travels an arc of (D/2)*phi  ->  wheel angle = D*phi/(2r)
+      desired_wheel_theta[0] = robotDiameter * desiredPhi / (2.0 * radius);
+      desired_wheel_theta[1] = -desired_wheel_theta[0];
 
+      bool inTol =
+        fabs(desired_wheel_theta[0] - theta[0]) < settlePosTol &&
+        fabs(desired_wheel_theta[1] - theta[1]) < settlePosTol &&
+        fabs(angularVelocity[0]) < settleVelTol &&
+        fabs(angularVelocity[1]) < settleVelTol;
 
-      if (turning) {
-        if (abs(phiError) < phiDeadband) {
-          // close enough: stop and clear the integrator
-          voltage[0] = 0;
-          voltage[1] = 0;
-          phiErrorAccum = 0;
-        } else {
-          // integrate error (dt is in seconds so units are consistent)
-          phiErrorAccum += phiError * dt;
- 
-          float u = Kp_phi * phiError + Ki_phi * phiErrorAccum;
- 
-          // saturate, and undo this step's accumulation so the integral
-          // doesn't wind up while the motors are maxed out
-          if (u > maxVoltage) {
-            u = maxVoltage;
-            phiErrorAccum -= phiError * dt;
-          } else if (u < -maxVoltage) {
-            u = -maxVoltage;
-            phiErrorAccum -= phiError * dt;
-          }
-
-          if (u > 0 && u < minVoltage) {
-            u = minVoltage;
-          } else if (u < 0 && u > -minVoltage) {
-            u = -minVoltage;
-          }
- 
-          voltage[0] =  u;
-          voltage[1] = -u;
+      if (inTol) {
+        if (!settling) {
+          settling = true;
+          settleStart_ms = current_time_ms;
+        } else if (current_time_ms - settleStart_ms >= settleHold_ms) {
+          moveState = ZEROING;
         }
+      } else {
+        settling = false;
       }
- 
-      // CHANGED: the loop below now only handles direction + PWM.
-      // The old "if abs(voltage) <= 1.2, force to +/-1.2" floor was removed
-      // because it fights the integral term. The integral will now ramp the
-      // voltage up on its own to overcome stiction. If the robot stalls just
-      // short of the target, raise Ki_phi (or shrink phiDeadband).
-      for(int i = 0; i < 2; i++){
-        //this makes sure that if the voltage is negative it goes backwards and if it's positive it goes forwards.
-        if (voltage[i] > 0) {
-          digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
-          analogWrite(PWM_PINs[i], (abs(voltage[i]) / maxVoltage * 255));
-        } else if (voltage[i] < 0) {
-          digitalWrite(SIGN_PIN[i], !i ? HIGH : LOW);
-          analogWrite(PWM_PINs[i], (abs(voltage[i]) / maxVoltage * 255));
-        }
-        else{
-          analogWrite(PWM_PINs[i], 0);
-        }
+
+      if (current_time_ms - start_time_ms > turnTimeout_ms) {
+        moveState = ZEROING;   // safety: don't hang forever on a stuck turn
       }
-      
-    
-
-      
-  phiSpeed = (radius * (angularVelocity[0] - angularVelocity[1])/robotDiameter);
-  desired_wheel_theta[0] = robotDiameter * PI * desiredPhi/circumference;
-  desired_wheel_theta[1] = -desired_wheel_theta[0];
-  linearSpeed = (linearVelocity[0] + linearVelocity[1])/2;
-      Serial.print("Error: ");
-      Serial.print(phiError);
-      Serial.print(" Phi: ");
-      Serial.print(odometry[2]);
-      Serial.print("Volt0");
-      Serial.print(voltage[0]);
-      Serial.print("Volt1");
-      Serial.println(voltage[1]);
-
-  
-  // this for loop runs twice to make sure it does the same calculations for both wheels.
-    for(int i = 0; i < 2; i++){
-    
-    //this calculates the error  in theta
-    deltaTheta[i] = desired_wheel_theta[i] - theta[i];
-    // calculates the accumulated error in theta
-    accumTheta[i] += deltaTheta[i] * desired_Ts_ms;
-
-    // calculates the current velocity
-    //sets previous theta to current theta after we dont need it
-    prevTheta[i] = theta[i];
-    // this uses our gain to stabilize the angular velocity to something that we want
-    angularVelocity_SP[i] = Ki_pos * accumTheta[i] + (Kp_pos * (deltaTheta[i]));
-    // calculates the required voltage to spin the wheel at the right speed
-    //voltage[i] = Kp_vel * (angularVelocity_SP[i] - angularVelocity[i]);
-
-    
-    // this calculates if we need positive or negative voltage to get to the required postion
- /**
-    if(voltage[i] >= 8.0){
-      voltage[i] = 8;
-      accumTheta[i] -= deltaTheta[i] * desired_Ts_ms;
-    } else if(voltage[i] <= -8.0){
-      voltage[i] = -8;
-      accumTheta[i] -= deltaTheta[i] * desired_Ts_ms;
     }
 
-    //this makes sure that if the voltage is negative it goes backwards and if it's positive it goes forwards.
-    if (voltage[i] > 0) {
-      digitalWrite(SIGN_PIN[i], !i ? LOW : HIGH);
-      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
-    } else if (voltage[i] < 0) {
-      digitalWrite(SIGN_PIN[i], !i ? HIGH : LOW);
-      analogWrite(PWM_PINs[i], (abs(voltage[i]) / 8.0 * 255));
+    if (moveState == ZEROING) {
+      // zero everything in one shot so there's no velocity spike
+      noInterrupts();
+      encoderCount[0] = 0;
+      encoderCount[1] = 0;
+      interrupts();
+      for (int i = 0; i < 2; i++) {
+        theta[i] = 0;
+        prevTheta[i] = 0;
+        accumTheta[i] = 0;
+        desired_wheel_theta[i] = 0;
+        angularVelocity[i] = 0;
+      }
+      moveState = DRIVING;
     }
-    else{
-      analogWrite(PWM_PINs[i], 0);
+
+    if (moveState == DRIVING) {
+      for (int i = 0; i < 2; i++) {
+        desired_wheel_theta[i] = desiredDistance / radius;
+      }
     }
- 
-**/
+
+    float limit = (moveState == DRIVING) ? driveVoltLimit : turnVoltLimit;
+
+    // ---------------- per-wheel position -> velocity -> voltage ----------------
+    for (int i = 0; i < 2; i++) {
+      deltaTheta[i] = desired_wheel_theta[i] - theta[i];
+      accumTheta[i] += deltaTheta[i] * desired_Ts_ms;
+      prevTheta[i] = theta[i];
+
+      angularVelocity_SP[i] = Ki_pos * accumTheta[i] + Kp_pos * deltaTheta[i];
+      voltage[i] = Kp_vel * (angularVelocity_SP[i] - angularVelocity[i]);
+
+      // clamp + anti-windup
+      if (voltage[i] >= limit) {
+        voltage[i] = limit;
+        accumTheta[i] -= deltaTheta[i] * desired_Ts_ms;
+      } else if (voltage[i] <= -limit) {
+        voltage[i] = -limit;
+        accumTheta[i] -= deltaTheta[i] * desired_Ts_ms;
+      }
     }
 
+    // ---------------- wheel sync (cross-coupling) ----------------
+    // "progress" of each wheel is measured in its own direction of travel, so
+    // this works for driving straight (both +) and for turning (+ and -).
+    float s0 = (desired_wheel_theta[0] > 0) - (desired_wheel_theta[0] < 0);
+    float s1 = (desired_wheel_theta[1] > 0) - (desired_wheel_theta[1] < 0);
+    if (s0 != 0 && s1 != 0) {
+      float syncErr = s0 * theta[0] - s1 * theta[1];   // >0 : right wheel ahead
+      float trim = constrain(Ksync * syncErr, -maxTrim, maxTrim);
+      voltage[0] -= s0 * trim;   // slow the wheel that's ahead
+      voltage[1] += s1 * trim;   // speed up the wheel that's behind
+    }
 
+    // ---------------- write motors (once) ----------------
+    setMotor(0, voltage[0]);
+    setMotor(1, voltage[1]);
 
-    
-     
-      // Updates last time
-      last_time_ms = current_time_ms;
-
+    last_time_ms = current_time_ms;
+    // debug: state, wheel angles, commanded voltages, phi
+    Serial.print(moveState); Serial.print(" ");
+    Serial.print(theta[0]); Serial.print(" ");
+    Serial.print(theta[1]); Serial.print(" ");
+    Serial.print(voltage[0]); Serial.print(" ");
+    Serial.print(voltage[1]); Serial.print(" ");
+    Serial.println(odometry[2]);
   }
-
-
-    
-
-} 
+}
 
 // ---------------------------------------------------------------------
-// Encoder ISRs 
+// Encoder ISRs
 // ---------------------------------------------------------------------
 void encoderISR_L() {
   int AL = digitalRead(encoderApinL);
@@ -319,30 +283,4 @@ void encoderISR_R() {
   } else {
     encoderCount[0] -= 2;
   }
-}
-
-
-// printReceived helps us see what data we are getting from the leader
-void printReceived() {
-// Print on serial console
-Serial.print("Offset received: ");
-Serial.println(offset);
-Serial.print("Message Length: ");
-Serial.println(msgLength);
-Serial.print("Instruction received: ");
-for (int i=0;i<msgLength;i++) {
-Serial.print(String(instruction[i])+"\t");
-}
-Serial.println("");
-}
-
-// function called when an I2C interrupt event happens
-void receive() {
-  msgLength = 0;
-// Set the offset, this will always be the first byte.
-// If there is information after the offset, it is telling us more about the command.
-while (Wire.available()) {
-instruction[msgLength] = Wire.read();
-msgLength++;
-}
 }
