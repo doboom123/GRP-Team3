@@ -8,7 +8,9 @@ This is the repository for Group 3 in seed lab.
 
 1. **Demo1**
  ```bash
-The Demo1.ino is all the arudiono code. In that file, we had Voltage trimming to make the motors spin at the same rate. We also used a PID controller for the individual wheels to make the robot move to desired positions. In the code, there is also a state machine that ensures the robot is only doing one thing at a time.
+The Demo1.ino is all the arudiono code. In that file, we had Voltage trimming to make the motors
+spin at the same rate. We also used a PID controller for the individual wheels to make the robot move
+to desired positions. In the code, there is also a state machine that ensures the robot is only doing one thing at a time.
  ```
 
 3. **MiniProj1_23SEP26**
