@@ -7,14 +7,13 @@
 // Turn in place by desiredPhi, then drive desiredDistance.
 // Right wheel = index 0, left wheel = index 1.
 //
-// CHANGES FROM PREVIOUS VERSION
-//  1. The turn -> drive switch is now based on the wheels actually finishing the
-//     turn (settled), not on a fixed 5 s timer. Big turns (>180 deg) no longer
-//     get cut off.
-//  2. encoderCount is read into a long (int is only 16 bits on an Uno/Nano).
-//  3. Added a cross-coupled wheel sync trim that works in BOTH the turn and
-//     drive phases, replacing the old "voltage += velocity difference" hack.
-//  4. Removed the duplicate motor write that used last cycle's stale voltage.
+// // This code now uses a statemachine to define what the Robot should be doing at any moment.
+// The turnign state allows it to turn, the zeroing state resets all the variables, and the 
+// drive state moves the robot a certain distance. There is also a voltage trimming module
+// that allows for the wheels to be synced up and turn at the same rate
+//
+//
+//
 
 // Timing
 unsigned long desired_Ts_ms = 20;   // sample period, ms
