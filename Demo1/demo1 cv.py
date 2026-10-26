@@ -1,3 +1,9 @@
+# Demo 1 Computer Vision
+# Ian Ferguson and Ziero Padilla
+# Group 3
+#
+# This code utilizes a calibrated cmarea in order to detect the angle of an ArUco marker.
+
 import cv2
 from cv2 import aruco
 
@@ -16,6 +22,7 @@ import math
 
 q = queue.Queue()
 
+# initialize variables
 phi = 0
 
 FOV_DEGREES = 53
@@ -28,15 +35,18 @@ camera = cv2.VideoCapture(0) # Initialize the camera
 camera.set(cv2.CAP_PROP_FRAME_WIDTH, img_w) # set resolution
 camera.set(cv2.CAP_PROP_FRAME_HEIGHT, img_h)
 
+# camera calibration matrices
 cam_mtx = np.array([[658.30651767, 0, 344.8388955],
                   [0, 656.24217357, 239.78748797],
                   [0, 0, 1]])
 
 dist_coeff = np.array([0.154308352, -1.28270254, 0.00200018049, -0.000650158947, 2.52859272])
 
+# defining focal length of the camera
 fX = cam_mtx[0,0]
 img_cX = img_w/2
 
+# redefining our centers using an optimized matrix
 newcameramtx, roi = cv2.getOptimalNewCameraMatrix(cam_mtx, dist_coeff, (img_w, img_h), 1, (img_w, img_h))
 x, y, w_roi, h_roi = roi
 new_fX = newcameramtx[0,0]
@@ -95,12 +105,13 @@ while(True):
     if key == ord('q'):
         break
 
+    # setting to greyscale and undistorting
     grey = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
     dst = cv2.undistort(grey, cam_mtx, dist_coeff)
-    
+
+    # cropping black edges out
     dst = dst[y:y+h_roi, x:x+w_roi]
     
-    # Make the image greyscale for ArUco detection
     cv2.imshow("overlay",dst)
 
     # hunt for aruco tags
