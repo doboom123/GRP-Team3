@@ -92,6 +92,7 @@ const float settleVelTol = 0.2;             // rad/s
 const unsigned long settleHold_ms = 200;    // must stay settled this long
 const unsigned long turnTimeout_ms = 20000; // give up on turn after this long
 bool settling = false;
+bool foundMarker = false;
 unsigned long settleStart_ms = 0;
 float currentDistance = 0;
 // ---------------------------------------------------------------------
@@ -178,6 +179,27 @@ void loop() {
     long denom = (odometry[0] * odometry[0]) + (odometry[1] * odometry[1]);
     
     currentDistance = sqrt(denom);
+
+    if (moveState == SEEKING){
+      // each wheel travels an arc of (D/2)*phi  ->  wheel angle = D*phi/(2r)
+      desired_wheel_theta[0] = 2.0 * PI;
+      desired_wheel_theta[1] = -desired_wheel_theta[0];
+
+      if (foundMarker) {
+        if (!settling) {
+          settling = true;
+          settleStart_ms = current_time_ms;
+        } else if (current_time_ms - settleStart_ms >= settleHold_ms) {
+          moveState = ZEROING;
+        }
+      } else {
+        settling = false;
+      }
+
+      if (current_time_ms - start_time_ms > turnTimeout_ms) {
+        moveState = ZEROING;   // safety: don't hang forever on a stuck turn
+      }
+    }
 
     // ---------------- movement state machine ----------------
     if (moveState == TURNING) {
