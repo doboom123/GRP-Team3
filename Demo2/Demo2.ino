@@ -126,6 +126,17 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(encoderApinR), encoderISR_R, CHANGE);
   attachInterrupt(digitalPinToInterrupt(encoderApinL), encoderISR_L, CHANGE);
 
+   // Initialize I2C
+  Wire.begin(MY_ADDR);
+  // Set callbacks for I2C interrupts
+  Wire.onReceive(receive);
+
+  // sets the baudrate and starts the interval timer we'll be using for odometry
+  Serial.begin(115200);
+  last_time_ms = millis();
+  start_time_ms = last_time_ms;
+  Serial.println("");
+
   Serial.begin(115200);
   last_time_ms = millis();
   start_time_ms = last_time_ms;
