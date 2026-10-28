@@ -100,6 +100,7 @@ void setup() {
   last_time_ms = millis();
   start_time_ms = last_time_ms;
   Serial.println("");
+
 }
 
 void loop() {
