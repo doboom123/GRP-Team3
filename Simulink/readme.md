@@ -1,1 +1,1 @@
-This folder contains all of the Simulink simulations included in tuning the controllers. 
+This folder contains all of the Simulink simulations included in tuning the controllers. The Demo 1 Simulink model has angle and distance simulink models with PID controllers. MATLAB plotting code runs a simulation of our robot, Miniproj data contains data used to create a transfer function for our robot, matlabsimuscript contains code useful for plotting data from simulink and simulinkSEED contains a simulink model for Miniproj1.
