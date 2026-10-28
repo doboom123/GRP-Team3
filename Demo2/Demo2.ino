@@ -83,7 +83,7 @@ const float maxTrim = 0.5;   // V, largest correction applied to each wheel (low
 float desiredPhi = 0 * PI / 180;          // degrees converted to radians
 float desiredDistance = 9 / 3.2808399;        // feet converted to meters
 
-enum MoveState { TURNING, ZEROING, DRIVING };
+enum MoveState { SEEKING, READING, TURNING, ZEROING, DRIVING };
 MoveState moveState = TURNING;
 
 // "Turn finished" detection
