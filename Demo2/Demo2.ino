@@ -43,7 +43,7 @@ const int PWM_PINs[2] = {9, 10};
 // ---------------------------------------------------------------------
 
 // constants determined by the physical design
-const float radius = 0.07381875;       // wheel radius, meters
+const float radius = 0.0747;       // wheel radius, meters
 const float fullRotation = 3200;       // encoder counts per full wheel rotation
 const float robotDiameter = 0.358775;  // meters, distance between wheels
 // ---------------------------------------------------------------------
@@ -81,7 +81,7 @@ const float maxTrim = 0.5;   // V, largest correction applied to each wheel (low
 
 // Movement
 float desiredPhi = 0 * PI / 180;          // degrees converted to radians
-float desiredDistance = 9 / 3.28084;        // feet converted to meters
+float desiredDistance = 9 / 3.2808399;        // feet converted to meters
 
 enum MoveState { TURNING, ZEROING, DRIVING };
 MoveState moveState = TURNING;
@@ -93,6 +93,7 @@ const unsigned long settleHold_ms = 200;    // must stay settled this long
 const unsigned long turnTimeout_ms = 20000; // give up on turn after this long
 bool settling = false;
 unsigned long settleStart_ms = 0;
+float currentDistance = 0;
 // ---------------------------------------------------------------------
 
 void setMotor(int i, float v) {
@@ -162,6 +163,10 @@ void loop() {
     float v = (linearVelocity[0] + linearVelocity[1]) / 2;
     odometry[0] += cos(odometry[2]) * v * dt;
     odometry[1] += sin(odometry[2]) * v * dt;
+
+    long denom = (odometry[0] * odometry[0]) + (odometry[1] * odometry[1]);
+    
+    currentDistance = sqrt(denom);
 
     // ---------------- movement state machine ----------------
     if (moveState == TURNING) {
@@ -252,12 +257,16 @@ void loop() {
 
     last_time_ms = current_time_ms;
     // debug: state, wheel angles, commanded voltages, phi
-    Serial.print(moveState); Serial.print(" ");
-    Serial.print(theta[0]); Serial.print(" ");
-    Serial.print(theta[1]); Serial.print(" ");
-    Serial.print(voltage[0]); Serial.print(" ");
-    Serial.print(voltage[1]); Serial.print(" ");
-    Serial.println(odometry[2]);
+    Serial.print("Desired Distance ");
+    Serial.print(desiredDistance, 5);
+    Serial.print(" Current Distance ");
+    Serial.print(currentDistance, 5);
+    Serial.print(" desiredThethaLeft ");
+    Serial.print(desired_wheel_theta[1], 5);
+    Serial.print(" desiredThethaRight ");
+    Serial.print(desired_wheel_theta[0], 5);
+    Serial.print('\n');
+
   }
 }
 
