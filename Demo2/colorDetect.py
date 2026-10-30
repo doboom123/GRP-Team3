@@ -1,3 +1,6 @@
+#EENG350 Demo 2 CV: Color Detection 
+# Ziero Padilla
+
 import numpy as np
 import cv2
 
