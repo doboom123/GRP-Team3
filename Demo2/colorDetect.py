@@ -1,4 +1,4 @@
-#EENG350 Demo 2 CV: Color Detection 
+# EENG350 Demo 2 CV: Color Detection 
 # Ziero Padilla
 
 import numpy as np
@@ -12,7 +12,7 @@ redUpper = np.array([10, 255, 255])
 greenLower = np.array([50, 160, 100])
 greenUpper = np.array([79, 200, 200])
 
-#function for red/green detect
+#function for red/green detection
 def colorDetect(scene, lower, upper):
     hsv = cv2.cvtColor(scene, cv2.COLOR_BGR2HSV) #remember: any hsv values found online should be divided by 2 for your program
     #print(hsv[143,360])
@@ -41,7 +41,7 @@ def arrowDirection(scene):
     if (isGreen):
         print("Green Arrow: LEFT")
         return "LEFT"
-    elif(isRed):
+    elif (isRed):
         print("Red Arrow: RIGHT")
         return "RIGHT"
     else:

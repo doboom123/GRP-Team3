@@ -1,26 +1,9 @@
+
  #include <Wire.h>
 
- 
- 
- // Initialize I2C
-  Wire.begin(MY_ADDR);
-  // Set callbacks for I2C interrupts
-  Wire.onReceive(receive);
 
-  // sets the baudrate and starts the interval timer we'll be using for odometry
-  Serial.begin(115200);
-  last_time_ms = millis();
-  start_time_ms = last_time_ms;
-  Serial.println("");
 
-  // checks to see if a message came in and prints it out if so
- if (msgLength > 0) {
-  if (offset==1) {
-    digitalWrite(LED_BUILTIN,instruction[0]);
-  }
-  printReceived();
-  msgLength = 0;
-  }
+ 
 
 void printReceived() {
 // Print on serial console
@@ -37,11 +20,11 @@ void receive(int numBytes) {
 
   while(Wire.available()){
     for(int i = 0; i< numBytes; i++){
-      memcpy(&receivedDistance, instruction[1:4], sizeof(float));
-      memcpy(&receivedAngle, instruction[5:8], sizeof(float));
+      memcpy(&receivedDistance, instructionDistance, sizeof(float));
+      memcpy(&receivedAngle, instructionAngle, sizeof(float));
     }
     msgLength++;
   }
 
 }
-}
+
