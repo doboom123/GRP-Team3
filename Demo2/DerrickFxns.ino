@@ -1,3 +1,5 @@
+ #include <Wire.h>
+ 
  // Initialize I2C
   Wire.begin(MY_ADDR);
   // Set callbacks for I2C interrupts

@@ -84,7 +84,7 @@ float desiredPhi = 0 * PI / 180;          // degrees converted to radians
 float desiredDistance = 9 / 3.2808399;        // feet converted to meters
 
 enum MoveState { SEEKING, READING, TURNING, ZEROING, DRIVING };
-MoveState moveState = TURNING;
+MoveState moveState = SEEKING;
 
 // "Turn finished" detection
 const float settlePosTol = 0.05;            // rad of wheel position error
@@ -138,15 +138,20 @@ void setup() {
   start_time_ms = last_time_ms;
   Serial.println("");
 
-  Serial.begin(115200);
-  last_time_ms = millis();
-  start_time_ms = last_time_ms;
-  Serial.println("");
   Serial.println("Robot started");
 }
 
 void loop() {
   current_time_ms = millis();
+
+  if (msgLength > 0) {
+  if (offset==1) {
+    digitalWrite(LED_BUILTIN,instruction[0]);
+  }
+  printReceived();
+  msgLength = 0;
+  }
+  
   digitalWrite(STBY_PIN, HIGH);
 
   // read encoders without being interrupted (long, NOT int)
@@ -182,8 +187,8 @@ void loop() {
 
     if (moveState == SEEKING){
       // each wheel travels an arc of (D/2)*phi  ->  wheel angle = D*phi/(2r)
-      desired_wheel_theta[0] = 2.0 * PI;
-      desired_wheel_theta[1] = -desired_wheel_theta[0];
+      desired_wheel_theta[0] = robotDiameter * 2 * PI / (2.0 * radius);
+      desired_wheel_theta[1] = -robotDiameter * 2 * PI / (2.0 * radius);
 
       if (foundMarker) {
         if (!settling) {
@@ -196,9 +201,13 @@ void loop() {
         settling = false;
       }
 
-      if (current_time_ms - start_time_ms > turnTimeout_ms) {
+      if (current_time_ms - start_time_ms >= turnTimeout_ms) {
         moveState = ZEROING;   // safety: don't hang forever on a stuck turn
       }
+
+      Serial.print(theta[0]);
+      Serial.print("");
+      Serial.print(theta[1]);
     }
 
     // ---------------- movement state machine ----------------
@@ -324,4 +333,28 @@ void encoderISR_R() {
   } else {
     encoderCount[0] -= 2;
   }
+}
+
+// printReceived helps us see what data we are getting from the leader
+void printReceived() {
+  // Print on serial console
+  Serial.print("Offset received: ");
+  Serial.println(offset);
+  Serial.print("Message Length: ");
+  Serial.println(msgLength);
+  Serial.print("Instruction received: ");
+  for (int i=0;i<msgLength;i++) {
+  Serial.print(String(instruction[i])+"\t");
+  }
+  Serial.println("");
+}
+
+void receive() {
+  msgLength = 0;
+// Set the offset, this will always be the first byte.
+// If there is information after the offset, it is telling us more about the command.
+while (Wire.available()) {
+instruction[msgLength] = Wire.read();
+msgLength++;
+}
 }
