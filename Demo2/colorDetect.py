@@ -8,9 +8,9 @@ import cv2
 redLower = np.array([0, 100, 100]) #placeholder values for the bright reds until compared against better lighting 
 redUpper = np.array([10, 255, 255])
 
-#Green values from assignment 2 
-greenLower = np.array([50, 160, 100])
-greenUpper = np.array([79, 200, 200])
+#Green values to be fine-tuned
+greenLower = np.array([50, 110, 60])
+greenUpper = np.array([85, 255, 255])
 
 #function for red/green detection
 def colorDetect(scene, lower, upper):
