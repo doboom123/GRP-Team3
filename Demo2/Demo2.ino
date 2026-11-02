@@ -27,6 +27,8 @@ float dt = 0;                       // seconds, sample period as a float
 volatile uint8_t offset = 0;
 volatile uint8_t instruction[32] = {0};
 volatile uint8_t msgLength = 0;
+float receivedAngle;
+float receivedDistance;
 // ---------------------------------------------------------------------
 
 // Encoder pins
@@ -151,7 +153,7 @@ void loop() {
   printReceived();
   msgLength = 0;
   }
-  
+
   digitalWrite(STBY_PIN, HIGH);
 
   // read encoders without being interrupted (long, NOT int)
