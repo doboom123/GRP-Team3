@@ -255,7 +255,6 @@ void loop() {
         desired_wheel_theta[i] = 0;
         angularVelocity[i] = 0;
       }
-      moveState = DRIVING;
     }
 
     if (moveState == DRIVING) {
@@ -338,5 +337,3 @@ void encoderISR_R() {
     encoderCount[0] -= 2;
   }
 }
-
-// printReceived helps us see what data we are getting from the leader

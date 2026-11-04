@@ -1,9 +1,6 @@
 
- #include <Wire.h>
+// printReceived helps us see what data we are getting from the leader
 
-
-
- 
 
 void printReceived() {
 // Print on serial console
@@ -20,9 +17,13 @@ void receive(int numBytes) {
 
   while(Wire.available()){
     for(int i = 0; i< numBytes; i++){
-      memcpy(&receivedDistance, instructionDistance, sizeof(float));
-      memcpy(&receivedAngle, instructionAngle, sizeof(float));
+      instructionDistance[i] = Wire.read();
     }
+    for(int i = 0; i< numBytes; i++){
+      instructionAngle[i] = Wire.read();
+    }
+    memcpy(&receivedDistance, instructionDistance, sizeof(float));
+    memcpy(&receivedAngle, instructionAngle, sizeof(float));
     msgLength++;
   }
 
