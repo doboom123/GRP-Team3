@@ -85,10 +85,11 @@ const float maxTrim = 0.5;   // V, largest correction applied to each wheel (low
 
 // Movement
 float desiredPhi = 0 * PI / 180;          // degrees converted to radians
-float desiredDistance = 9 / 3.2808399;        // feet converted to meters
+float desiredDistance = 0 / 3.2808399;        // feet converted to meters
 
 enum MoveState { SEEKING, READING, TURNING, ZEROING, DRIVING };
 MoveState moveState = SEEKING;
+MoveState prevState = SEEKING;
 
 // "Turn finished" detection
 const float settlePosTol = 0.05;            // rad of wheel position error
@@ -206,7 +207,7 @@ void loop() {
       }
 
       if (current_time_ms - start_time_ms >= turnTimeout_ms) {
-        moveState = ZEROING;   // safety: don't hang forever on a stuck turn
+        foundMarker = true;   // safety: don't hang forever on a stuck turn
       }
 
       Serial.print(theta[0]);
@@ -219,7 +220,7 @@ void loop() {
       // each wheel travels an arc of (D/2)*phi  ->  wheel angle = D*phi/(2r)
       desired_wheel_theta[0] = robotDiameter * desiredPhi / (2.0 * radius);
       desired_wheel_theta[1] = -desired_wheel_theta[0];
-
+      prevState = TURNING;
       bool inTol =
         fabs(desired_wheel_theta[0] - theta[0]) < settlePosTol &&
         fabs(desired_wheel_theta[1] - theta[1]) < settlePosTol &&
@@ -254,6 +255,30 @@ void loop() {
         accumTheta[i] = 0;
         desired_wheel_theta[i] = 0;
         angularVelocity[i] = 0;
+      }
+
+      if(foundMarker == true){
+        desiredDistance += 100 * instructionDistance[0];
+        desiredDistance += 10 * instructionDistance[1];
+        desiredDistance += 1 * instructionDistance[2];
+        desiredDistance += .1 * instructionDistance[3];
+
+        desiredDistance = desiredDistance / 100;
+
+        desiredPhi += 10 * instructionAngle[0];
+        desiredPhi += 1 * instructionAngle[1];
+        desiredPhi += .1 * instructionAngle[2];
+        desiredPhi += .01 * instructionAngle[3];
+      }
+
+      
+
+      if(prevState == TURNING){
+      moveState = DRIVING;
+      }
+
+      if(prevState == SEEKING){
+        moveState = TURNING;
       }
     }
 
@@ -337,3 +362,5 @@ void encoderISR_R() {
     encoderCount[0] -= 2;
   }
 }
+
+// printReceived helps us see what data we are getting from the leader
