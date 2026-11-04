@@ -197,12 +197,14 @@ void loop() {
     
     currentDistance = sqrt(denom);
 
-    if (moveState == SEEKING){
+    long waitTime = millis();
 
+    if (moveState == SEEKING){
+      if(waitTime >= 2000){
       prevState = SEEKING;
       // each wheel travels an arc of (D/2)*phi  ->  wheel angle = D*phi/(2r)
-      desired_wheel_theta[0] = robotDiameter * 2 * PI / (2.0 * radius);
-      desired_wheel_theta[1] = -robotDiameter * 2 * PI / (2.0 * radius);
+      desired_wheel_theta[0] = robotDiameter * 100 * PI / (2.0 * radius);
+      desired_wheel_theta[1] = -robotDiameter * 100 * PI / (2.0 * radius);
 
       if (foundMarker) {
         if (!settling) {
@@ -222,6 +224,7 @@ void loop() {
       Serial.print(theta[0]);
       Serial.print("");
       Serial.print(theta[1]);
+      }
     }
 
     // ---------------- movement state machine ----------------
