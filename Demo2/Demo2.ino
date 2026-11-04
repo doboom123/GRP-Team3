@@ -27,8 +27,8 @@ float dt = 0;                       // seconds, sample period as a float
 volatile uint8_t offset = 0;
 volatile uint8_t instruction[32] = {0};
 volatile uint8_t msgLength = 0;
-float receivedAngle;
-float receivedDistance;
+float receivedAngle = 0;
+float receivedDistance = 0;
 uint8_t instructionAngle[4] = {0};
 uint8_t instructionDistance[4] = {0};
 // ---------------------------------------------------------------------
@@ -87,7 +87,7 @@ const float maxTrim = 0.5;   // V, largest correction applied to each wheel (low
 float desiredPhi = 0 * PI / 180;          // degrees converted to radians
 float desiredDistance = 0 / 3.2808399;        // feet converted to meters
 
-enum MoveState { SEEKING, READING, TURNING, ZEROING, DRIVING };
+enum MoveState { SEEKING, TURNING, ZEROING, DRIVING };
 MoveState moveState = SEEKING;
 MoveState prevState = SEEKING;
 
@@ -149,6 +149,13 @@ void setup() {
 void loop() {
   current_time_ms = millis();
 
+  Serial.print(moveState);
+    Serial.print(" ");
+    Serial.print(prevState);
+    Serial.print(" ");
+    Serial.print(desiredPhi);
+    Serial.print('\n');
+
   if (msgLength > 0) {
   if (offset==1) {
     digitalWrite(LED_BUILTIN,instruction[0]);
@@ -191,6 +198,8 @@ void loop() {
     currentDistance = sqrt(denom);
 
     if (moveState == SEEKING){
+
+      prevState = SEEKING;
       // each wheel travels an arc of (D/2)*phi  ->  wheel angle = D*phi/(2r)
       desired_wheel_theta[0] = robotDiameter * 2 * PI / (2.0 * radius);
       desired_wheel_theta[1] = -robotDiameter * 2 * PI / (2.0 * radius);
@@ -220,7 +229,7 @@ void loop() {
       // each wheel travels an arc of (D/2)*phi  ->  wheel angle = D*phi/(2r)
       desired_wheel_theta[0] = robotDiameter * desiredPhi / (2.0 * radius);
       desired_wheel_theta[1] = -desired_wheel_theta[0];
-      prevState = TURNING;
+      
       bool inTol =
         fabs(desired_wheel_theta[0] - theta[0]) < settlePosTol &&
         fabs(desired_wheel_theta[1] - theta[1]) < settlePosTol &&
@@ -232,14 +241,11 @@ void loop() {
           settling = true;
           settleStart_ms = current_time_ms;
         } else if (current_time_ms - settleStart_ms >= settleHold_ms) {
+          prevState = TURNING;
           moveState = ZEROING;
         }
       } else {
         settling = false;
-      }
-
-      if (current_time_ms - start_time_ms > turnTimeout_ms) {
-        moveState = ZEROING;   // safety: don't hang forever on a stuck turn
       }
     }
 
@@ -321,15 +327,7 @@ void loop() {
 
     last_time_ms = current_time_ms;
     // debug: state, wheel angles, commanded voltages, phi
-    Serial.print("Desired Distance ");
-    Serial.print(desiredDistance, 5);
-    Serial.print(" Current Distance ");
-    Serial.print(currentDistance, 5);
-    Serial.print(" desiredThethaLeft ");
-    Serial.print(desired_wheel_theta[1], 5);
-    Serial.print(" desiredThethaRight ");
-    Serial.print(desired_wheel_theta[0], 5);
-    Serial.print('\n');
+    
 
   }
 }
