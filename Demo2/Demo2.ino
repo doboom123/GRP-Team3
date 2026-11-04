@@ -258,17 +258,11 @@ void loop() {
       }
 
       if(foundMarker == true){
-        desiredDistance += 100 * instructionDistance[0];
-        desiredDistance += 10 * instructionDistance[1];
-        desiredDistance += 1 * instructionDistance[2];
-        desiredDistance += .1 * instructionDistance[3];
+        desiredDistance = receivedDistance;
 
         desiredDistance = desiredDistance / 100;
 
-        desiredPhi += 10 * instructionAngle[0];
-        desiredPhi += 1 * instructionAngle[1];
-        desiredPhi += .1 * instructionAngle[2];
-        desiredPhi += .01 * instructionAngle[3];
+        desiredPhi = receivedAngle;
       }
 
       
