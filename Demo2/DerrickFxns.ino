@@ -13,6 +13,7 @@ Serial.println("");
 
 // function called when an I2C interrupt event happens
 void receive(int numBytes) {
+  piOn = Wire.read();
   foundMarker = Wire.read();
 
   while(Wire.available()){

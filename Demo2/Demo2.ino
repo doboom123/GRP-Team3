@@ -31,6 +31,7 @@ float receivedAngle = 0;
 float receivedDistance = 0;
 uint8_t instructionAngle[4] = {0};
 uint8_t instructionDistance[4] = {0};
+bool piOn = false;
 // ---------------------------------------------------------------------
 
 // Encoder pins
@@ -197,10 +198,8 @@ void loop() {
     
     currentDistance = sqrt(denom);
 
-    long waitTime = millis();
-
     if (moveState == SEEKING){
-      if(waitTime >= 2000){
+      if(piOn){
       prevState = SEEKING;
       // each wheel travels an arc of (D/2)*phi  ->  wheel angle = D*phi/(2r)
       desired_wheel_theta[0] = robotDiameter * 100 * PI / (2.0 * radius);
@@ -218,7 +217,7 @@ void loop() {
       }
 
       if (current_time_ms - start_time_ms >= turnTimeout_ms) {
-        foundMarker = true;   // safety: don't hang forever on a stuck turn
+          moveState = ZEROING; // safety: don't hang forever on a stuck turn
       }
 
       Serial.print(theta[0]);
