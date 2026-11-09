@@ -149,21 +149,27 @@ void setup() {
 
 void loop() {
   current_time_ms = millis();
-
+  receive(4);
   Serial.print(moveState);
     Serial.print(" ");
     Serial.print(prevState);
     Serial.print(" ");
-    Serial.print(desiredPhi);
-    Serial.print('\n');
+    Serial.print(Wire.available());
+    Serial.print(" ");
+    Serial.print(receivedDistance);
+    Serial.print(" ");
+    Serial.print(receivedAngle);
+    Serial.print(" ");
+    Serial.print(foundMarker);
+    Serial.print("\n");
 
-  if (msgLength > 0) {
-  if (offset==1) {
-    digitalWrite(LED_BUILTIN,instruction[0]);
-  }
-  printReceived();
-  msgLength = 0;
-  }
+  // if (msgLength > 0) {
+  // if (offset==1) {
+  //   digitalWrite(LED_BUILTIN,instruction[0]);
+  // }
+  // printReceived();
+  // msgLength = 0;
+  // }
 
   digitalWrite(STBY_PIN, HIGH);
 
@@ -274,10 +280,7 @@ void loop() {
       }
 
       
-
-      if(prevState == TURNING){
       moveState = DRIVING;
-      }
 
       if(prevState == SEEKING){
         moveState = TURNING;
@@ -288,6 +291,7 @@ void loop() {
       for (int i = 0; i < 2; i++) {
         desired_wheel_theta[i] = desiredDistance / radius;
       }
+      moveState = ZEROING;
     }
 
     float limit = (moveState == DRIVING) ? driveVoltLimit : turnVoltLimit;
