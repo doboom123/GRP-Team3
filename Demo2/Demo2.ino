@@ -27,8 +27,8 @@ float dt = 0;                       // seconds, sample period as a float
 volatile uint8_t offset = 0;
 volatile uint8_t instruction[32] = {0};
 volatile uint8_t msgLength = 0;
-float receivedAngle = 0;
-float receivedDistance = 0;
+volatile float receivedAngle;
+volatile float receivedDistance;
 uint8_t instructionAngle[4] = {0};
 uint8_t instructionDistance[4] = {0};
 bool piOn = false;
@@ -76,7 +76,7 @@ const float Ki_pos = .25;      // integral gain
 const float Kp_pos = 15;       // proportional gain
 const float Kp_vel = 2;
 
-const float turnVoltLimit  = 3.0;  // V clamp while turning (was 2.0; raised to get past motor deadband)
+const float turnVoltLimit  = 1.7;  // V clamp while turning (was 2.0; raised to get past motor deadband)
 const float driveVoltLimit = 4.0;  // V clamp while driving
 
 // Wheel sync (cross-coupling) tuning
@@ -149,27 +149,7 @@ void setup() {
 
 void loop() {
   current_time_ms = millis();
-  receive(4);
-  Serial.print(moveState);
-    Serial.print(" ");
-    Serial.print(prevState);
-    Serial.print(" ");
-    Serial.print(Wire.available());
-    Serial.print(" ");
-    Serial.print(receivedDistance);
-    Serial.print(" ");
-    Serial.print(receivedAngle);
-    Serial.print(" ");
-    Serial.print(foundMarker);
-    Serial.print("\n");
 
-  // if (msgLength > 0) {
-  // if (offset==1) {
-  //   digitalWrite(LED_BUILTIN,instruction[0]);
-  // }
-  // printReceived();
-  // msgLength = 0;
-  // }
 
   digitalWrite(STBY_PIN, HIGH);
 
@@ -184,8 +164,23 @@ void loop() {
 
   // runs every desired_Ts_ms
   if (current_time_ms - last_time_ms >= desired_Ts_ms) {
+  
+  if(abs(receivedAngle) > 0.1 && !foundMarker){
+    foundMarker = true;
+  }
+    
+  if(receivedDistance > 30 && !piOn){
+    piOn = true;
+  }
+  receive(9);
     float elapsed_ms = (float)(current_time_ms - last_time_ms);
     dt = elapsed_ms / 1000.0;
+    Serial.print("\n");
+    Serial.print(receivedDistance);
+    Serial.print(" ");
+    Serial.print(receivedAngle);
+    Serial.print(" ");
+    Serial.print("\n");
 
     // velocities
     for (int i = 0; i < 2; i++) {
@@ -201,21 +196,22 @@ void loop() {
     odometry[1] += sin(odometry[2]) * v * dt;
 
     long denom = (odometry[0] * odometry[0]) + (odometry[1] * odometry[1]);
-    
     currentDistance = sqrt(denom);
+
 
     if (moveState == SEEKING){
       if(piOn){
       prevState = SEEKING;
       // each wheel travels an arc of (D/2)*phi  ->  wheel angle = D*phi/(2r)
-      desired_wheel_theta[0] = robotDiameter * 100 * PI / (2.0 * radius);
-      desired_wheel_theta[1] = -robotDiameter * 100 * PI / (2.0 * radius);
+      desired_wheel_theta[0] += .7;
+      desired_wheel_theta[1] = -desired_wheel_theta[0];
 
       if (foundMarker) {
         if (!settling) {
           settling = true;
           settleStart_ms = current_time_ms;
         } else if (current_time_ms - settleStart_ms >= settleHold_ms) {
+
           moveState = ZEROING;
         }
       } else {
@@ -225,10 +221,6 @@ void loop() {
       if (current_time_ms - start_time_ms >= turnTimeout_ms) {
           moveState = ZEROING; // safety: don't hang forever on a stuck turn
       }
-
-      Serial.print(theta[0]);
-      Serial.print("");
-      Serial.print(theta[1]);
       }
     }
 
@@ -270,13 +262,14 @@ void loop() {
         desired_wheel_theta[i] = 0;
         angularVelocity[i] = 0;
       }
+      delay(1000);
 
       if(foundMarker == true){
-        desiredDistance = receivedDistance;
+        desiredDistance = receivedDistance - 10;
 
         desiredDistance = desiredDistance / 100;
 
-        desiredPhi = receivedAngle;
+        desiredPhi = (receivedAngle * PI)/180;
       }
 
       
@@ -360,5 +353,48 @@ void encoderISR_R() {
     encoderCount[0] -= 2;
   }
 }
+
+ void receive(int numBytes) {
+
+
+  // Only accept complete 9-byte messages
+  if (numBytes != 9) {
+    while (Wire.available()) {
+      Wire.read();
+    }
+    return;
+  }
+  while (Wire.available()) {
+
+  // Byte 0: marker detection flag
+  uint8_t markerFlag = Wire.read();
+
+  if (markerFlag == 7){
+    receivedAngle = 0;
+    receivedDistance = 0;
+  }
+
+  // Bytes 1-4: distance
+  uint8_t distanceBytes[4];
+  for (int i = 0; i < 4; i++) {
+    distanceBytes[i] = Wire.read();
+    receivedDistance += distanceBytes[i] * pow(10.0,(2-i));
+  }
+
+  // Bytes 5-8: angle
+  uint8_t angleBytes[4];
+  for (int i = 0; i < 4; i++) {
+    angleBytes[i] = Wire.read();
+
+  }
+  
+  receivedAngle += angleBytes[1] * 10.0;
+  receivedAngle += angleBytes[2];
+  receivedAngle += angleBytes[3] / 10.0;
+  if (!angleBytes[0]) {
+  receivedAngle = receivedAngle * -1;
+  }
+
+  }}
 
 // printReceived helps us see what data we are getting from the leader
