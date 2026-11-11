@@ -194,7 +194,6 @@ void loop() {
     float v = (linearVelocity[0] + linearVelocity[1]) / 2;
     odometry[0] += cos(odometry[2]) * v * dt;
     odometry[1] += sin(odometry[2]) * v * dt;
-
     long denom = (odometry[0] * odometry[0]) + (odometry[1] * odometry[1]);
     currentDistance = sqrt(denom);
 
