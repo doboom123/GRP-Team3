@@ -1,3 +1,5 @@
+#EENG350 Demo 2: Colour + Arrow Detection - Ziero Padilla
+
 import numpy as np
 import cv2
 
