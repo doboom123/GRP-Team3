@@ -207,19 +207,8 @@ void loop() {
       desired_wheel_theta[1] = -desired_wheel_theta[0];
 
       if (foundMarker) {
-        if (!settling) {
-          settling = true;
-          settleStart_ms = current_time_ms;
-        } else if (current_time_ms - settleStart_ms >= settleHold_ms) {
-
+        
           moveState = ZEROING;
-        }
-      } else {
-        settling = false;
-      }
-
-      if (current_time_ms - start_time_ms >= turnTimeout_ms) {
-          moveState = ZEROING; // safety: don't hang forever on a stuck turn
       }
       }
     }
@@ -265,7 +254,7 @@ void loop() {
       delay(1000);
 
       if(foundMarker == true){
-        desiredDistance = receivedDistance - 10;
+        desiredDistance = receivedDistance - 25;
 
         desiredDistance = desiredDistance / 100;
 
@@ -275,7 +264,7 @@ void loop() {
       
       moveState = DRIVING;
 
-      if(prevState == SEEKING){
+      if(prevState == SEEKING || abs(receivedAngle) > ((10 * PI)/180)){
         moveState = TURNING;
       }
     }
@@ -284,7 +273,7 @@ void loop() {
       for (int i = 0; i < 2; i++) {
         desired_wheel_theta[i] = desiredDistance / radius;
       }
-      moveState = ZEROING;
+      
     }
 
     float limit = (moveState == DRIVING) ? driveVoltLimit : turnVoltLimit;
