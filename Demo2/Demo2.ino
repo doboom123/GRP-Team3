@@ -194,6 +194,7 @@ void loop() {
     float v = (linearVelocity[0] + linearVelocity[1]) / 2;
     odometry[0] += cos(odometry[2]) * v * dt;
     odometry[1] += sin(odometry[2]) * v * dt;
+
     long denom = (odometry[0] * odometry[0]) + (odometry[1] * odometry[1]);
     currentDistance = sqrt(denom);
 
@@ -235,6 +236,7 @@ void loop() {
       } else {
         settling = false;
       }
+
     }
 
     if (moveState == ZEROING) {
@@ -260,11 +262,14 @@ void loop() {
         desiredPhi = (receivedAngle * PI)/180;
       }
 
-      
-      moveState = DRIVING;
+    
 
       if(prevState == SEEKING || abs(receivedAngle) > ((10 * PI)/180)){
         moveState = TURNING;
+      }
+
+      else{
+        moveState = DRIVING;
       }
     }
 
