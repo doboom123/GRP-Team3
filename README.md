@@ -19,6 +19,11 @@ The Arduino and Raspberry Pi code for the first Mini Project can be found in Min
 communication between an Arduino and a Raspberry Pi and to control two motors attached to the Arduino. The code initiates 
 movement in wheels controlled by the Arduino corresponding to the location of an ArUco marker in the view of a camera 
 connected to the PI. To use, run the Arduino and Pi codes on their respective devices and attach the necessary wires for I2C communication. Hook up the camera and aim it at an ArUco marker.
+
+4. **colorDetect**
+ ```bash
+The colorDetect functions were initially designed to detect the arrow colours and then pass them into a function called arrowDetect. When the exposure levels were messing with the colour thresholds, the focus was shifted solely to shape detection. This code worked as a baseline for colour and arrow detection before being integrated with the driver code to detect shapes.
+ ```
  ```
 3. **Simulink**
  ```bash
