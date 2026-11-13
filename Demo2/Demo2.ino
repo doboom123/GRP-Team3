@@ -76,7 +76,7 @@ const float Ki_pos = .25;      // integral gain
 const float Kp_pos = 15;       // proportional gain
 const float Kp_vel = 2;
 
-const float turnVoltLimit  = 1.7;  // V clamp while turning (was 2.0; raised to get past motor deadband)
+float turnVoltLimit  = 1.25;  // V clamp while turning (was 2.0; raised to get past motor deadband)
 const float driveVoltLimit = 4.0;  // V clamp while driving
 
 // Wheel sync (cross-coupling) tuning
@@ -103,6 +103,8 @@ unsigned long settleStart_ms = 0;
 float currentDistance = 0;
 bool colorDetection = false; //CHANGE THIS FOR THE COLOR DETECTCION
 bool movementDone = false;
+uint8_t realColor = 0;
+uint8_t color = 0;
 // ---------------------------------------------------------------------
 
 void setMotor(int i, float v) {
@@ -174,7 +176,7 @@ void loop() {
   if(receivedDistance > 30 && !piOn){
     piOn = true;
   }
-  receive(9);
+  receive(10);
     float elapsed_ms = (float)(current_time_ms - last_time_ms);
     dt = elapsed_ms / 1000.0;
     Serial.print("\n");
@@ -219,6 +221,9 @@ void loop() {
 
     // ---------------- movement state machine ----------------
     if (moveState == TURNING) {
+      if (movementDone){
+        turnVoltLimit = 4;
+      }
       // each wheel travels an arc of (D/2)*phi  ->  wheel angle = D*phi/(2r)
       desired_wheel_theta[0] = robotDiameter * desiredPhi / (2.0 * radius);
       desired_wheel_theta[1] = -desired_wheel_theta[0];
@@ -230,6 +235,16 @@ void loop() {
         fabs(angularVelocity[1]) < settleVelTol;
 
       if (inTol) {
+        if (movementDone){
+        for (int i = 0; i < 2; i++) {
+        theta[i] = 0;
+        prevTheta[i] = 0;
+        accumTheta[i] = 0;
+        desired_wheel_theta[i] = 0;
+        angularVelocity[i] = 0;
+      }
+          delay(1000000000);
+        }
         if (!settling) {
           settling = true;
           settleStart_ms = current_time_ms;
@@ -259,7 +274,7 @@ void loop() {
       }
       delay(1000);
 
-      if(foundMarker == true){
+      if(foundMarker == true && !movementDone){
         desiredDistance = receivedDistance - 25;
 
         desiredDistance = desiredDistance / 100;
@@ -270,13 +285,26 @@ void loop() {
     
       moveState = DRIVING;
 
-      if(prevState == SEEKING || abs(receivedAngle) > ((10 * PI)/180)){
+      if((prevState == SEEKING || abs(receivedAngle) > ((10 * PI)/180)) && !movementDone){
+        moveState = TURNING;
+      }
+      else{
+        realColor = color;
+      }
+
+      if(movementDone){
+        if(realColor == 0){
+          delay(100000000);
+        }
+        else if(realColor == 1){
+          desiredPhi = PI/2;
+        }
+        else if(realColor == 2){
+          desiredPhi = - PI/2;
+        }
         moveState = TURNING;
       }
 
-      if(movementDone && colorDetection){
-        moveState = TURNING;
-      }
 
       
     }
@@ -286,7 +314,7 @@ void loop() {
         desired_wheel_theta[i] = desiredDistance / radius;
       }
       
-      if(theta[0] == desired_wheel_theta[0] && desired_wheel_theta[1] == theta[1] && colorDetection){
+      if((abs(theta[0] - desired_wheel_theta[0])<0.1) && (abs(desired_wheel_theta[1]-theta[1]<0.1))){
         movementDone = true;
         moveState = ZEROING;
       }
@@ -364,7 +392,7 @@ void encoderISR_R() {
 
 
   // Only accept complete 9-byte messages
-  if (numBytes != 9) {
+  if (numBytes != 10) {
     while (Wire.available()) {
       Wire.read();
     }
@@ -400,7 +428,9 @@ void encoderISR_R() {
   if (!angleBytes[0]) {
   receivedAngle = receivedAngle * -1;
   }
+  color = Wire.read();
 
-  }}
+  }
+  }
 
 // printReceived helps us see what data we are getting from the leader
