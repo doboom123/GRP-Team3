@@ -101,6 +101,8 @@ bool settling = false;
 bool foundMarker = false;
 unsigned long settleStart_ms = 0;
 float currentDistance = 0;
+bool colorDetection = false; //CHANGE THIS FOR THE COLOR DETECTCION
+bool movementDone = false;
 // ---------------------------------------------------------------------
 
 void setMotor(int i, float v) {
@@ -264,14 +266,19 @@ void loop() {
       }
 
     
+      moveState = DRIVING;
 
       if(prevState == SEEKING || abs(receivedAngle) > ((10 * PI)/180)){
         moveState = TURNING;
       }
 
-      else{
-        moveState = DRIVING;
+      if(movementDone && colorDetection){
+        moveState = TURNING;
       }
+
+      
+        
+      
     }
 
     if (moveState == DRIVING) {
@@ -279,6 +286,11 @@ void loop() {
         desired_wheel_theta[i] = desiredDistance / radius;
       }
       
+      if(theta[0] == desired_wheel_theta[0] && desired_wheel_theta[1] == theta[1] && colorDetection){
+        movementDone = true;
+        moveState = ZEROING;
+      }
+
     }
 
     float limit = (moveState == DRIVING) ? driveVoltLimit : turnVoltLimit;
