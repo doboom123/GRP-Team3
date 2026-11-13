@@ -200,6 +200,8 @@ void loop() {
     long denom = (odometry[0] * odometry[0]) + (odometry[1] * odometry[1]);
     currentDistance = sqrt(denom);
 
+    Serial.print(moveState);
+
 
     if (moveState == SEEKING){
       if(piOn){
@@ -276,8 +278,6 @@ void loop() {
         moveState = TURNING;
       }
 
-      
-        
       
     }
 
