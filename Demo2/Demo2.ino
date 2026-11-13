@@ -245,6 +245,7 @@ void loop() {
       encoderCount[0] = 0;
       encoderCount[1] = 0;
       interrupts();
+      settling = false;
       for (int i = 0; i < 2; i++) {
         theta[i] = 0;
         prevTheta[i] = 0;
