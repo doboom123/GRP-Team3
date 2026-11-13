@@ -236,6 +236,7 @@ void loop() {
       } else {
         settling = false;
       }
+
     }
 
     if (moveState == ZEROING) {
@@ -244,6 +245,7 @@ void loop() {
       encoderCount[0] = 0;
       encoderCount[1] = 0;
       interrupts();
+      settling = false;
       for (int i = 0; i < 2; i++) {
         theta[i] = 0;
         prevTheta[i] = 0;
@@ -261,11 +263,14 @@ void loop() {
         desiredPhi = (receivedAngle * PI)/180;
       }
 
-      
-      moveState = DRIVING;
+    
 
       if(prevState == SEEKING || abs(receivedAngle) > ((10 * PI)/180)){
         moveState = TURNING;
+      }
+
+      else{
+        moveState = DRIVING;
       }
     }
 
@@ -360,7 +365,7 @@ void encoderISR_R() {
 
   if (markerFlag == 7){
     receivedAngle = 0;
-    receivedDistance = 0;
+    receivedDistance = 0; 
   }
 
   // Bytes 1-4: distance
