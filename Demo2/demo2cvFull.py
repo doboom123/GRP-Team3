@@ -10,7 +10,6 @@ import struct
 
 color = 0
 direction = 0
-KERNEL = np.ones((3, 3), np.uint8)
 
 # Red wraps around 0 and 179 in OpenCV HSV, so it requires two ranges
 redLower1 = np.array([0, 80, 50])
