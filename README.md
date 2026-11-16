@@ -24,7 +24,7 @@ connected to the PI. To use, run the Arduino and Pi codes on their respective de
 
 4. **colorDetect**
  ```bash
-The colorDetect functions were initially designed to detect arrow colours and pass them to a function called arrowDetect. When exposure levels messed with the colour thresholds, the focus shifted solely to shape detection. This code worked as a baseline for colour and arrow detection before being integrated with the driver code to detect shapes.
+The colorDetect functions are designed to detect arrow colours and pass them to a function called arrowDetect. Though the functions were designed to be modularly implemented using traditional Python import methods, they were hard-coded into the driver program to be better integrated with the state machine.
  ```
  ```
 3. **Simulink**
