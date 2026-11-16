@@ -14,7 +14,7 @@ colorDetect.py contains the logic that detects color which was used in demo2cvFu
 and aruco identification together and contains the code to communicate to the Arduino
  ```
 
-1. **Demo1**
+2. **Demo1**
  ```bash
 The Demo1.ino is all the arudiono code. In that file, we had Voltage trimming to make the motors
 spin at the same rate. We also used a PID controller for the individual wheels to make the robot move
