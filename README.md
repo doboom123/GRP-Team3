@@ -6,6 +6,14 @@
 This is the repository for Group 3 in seed lab. 
 ## files
 
+1. **Demo2**
+ ```bash
+The Demo2.ino is all the aruduino code. In that file, we implemented a state machine and Pi communication together to create a functioning robot.
+We take in information from the Pi and use said data to control our state machine and give us necessary distances and angles.
+colorDetect.py contains the logic that detects color which was used in demo2cvFull. demo2cvFull.py implements color detection, distance detection,
+and aruco identification together and contains the code to communicate to the Arduino
+ ```
+
 1. **Demo1**
  ```bash
 The Demo1.ino is all the arudiono code. In that file, we had Voltage trimming to make the motors
