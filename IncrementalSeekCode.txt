@@ -1,0 +1,33 @@
+if (moveState == SEEKING) {
+  if (piOn) {
+    prevState = SEEKING;
+
+    if (foundMarker) {
+      settling = false;
+      moveState = ZEROING;
+    }
+    else {
+      bool inTol =
+        fabs(desired_wheel_theta[0] - theta[0]) < settlePosTol &&
+        fabs(desired_wheel_theta[1] - theta[1]) < settlePosTol &&
+        fabs(angularVelocity[0]) < settleVelTol &&
+        fabs(angularVelocity[1]) < settleVelTol;
+
+      if (inTol) {
+        if (!settling) {
+          settling = true;
+          settleStart_ms = current_time_ms;
+        }
+        else if (current_time_ms - settleStart_ms >= 500) {
+          desiredPhi += 0.7;
+          desired_wheel_theta[0] = robotDiameter * desiredPhi / (2.0 * radius);
+          desired_wheel_theta[1] = -desired_wheel_theta[0];
+          settling = false;
+        }
+      }
+      else {
+        settling = false;
+      }
+    }
+  }
+}

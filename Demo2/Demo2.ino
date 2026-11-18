@@ -185,7 +185,6 @@ void loop() {
 
   Serial.println(realColor);
 
-
   digitalWrite(STBY_PIN, HIGH);
 
 
