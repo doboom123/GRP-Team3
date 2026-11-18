@@ -37,6 +37,7 @@ def colorDetect(scene, lower, upper):
     contours, _ = cv2.findContours(mask_clean, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     for cnt in contours:
         area = cv2.contourArea(cnt)
+        # fix this line!!!
         if area > 300:
             cv2.drawContours(scene, [cnt], 0, (255,0,0), 3)
             return True
