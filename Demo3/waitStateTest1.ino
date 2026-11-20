@@ -206,7 +206,7 @@ void loop() {
   if(abs(receivedAngle) > 0.1 && !foundMarker){
     foundMarker = true;
   }
-   
+
   if(receivedDistance > 30 && !piOn){
     piOn = true;
   }
@@ -236,7 +236,7 @@ void loop() {
 
 
 
-
+    Serial.println(moveState);
 
     if (moveState == SEEKING){
       if(piOn){
@@ -251,6 +251,7 @@ void loop() {
           moveState = ZEROING;
       }
       }
+      
     }
 
 
@@ -282,15 +283,18 @@ void loop() {
         moveState = WAITING;
         }
       }
-        }
-        if (!settling) {
+
+      if (!settling) {
           settling = true;
           settleStart_ms = current_time_ms;
         } else if (current_time_ms - settleStart_ms >= settleHold_ms) {
           prevState = TURNING;
+          
           moveState = ZEROING;
-        }
-      } else {
+      }
+      }
+
+       else {
         settling = false;
       }
 
@@ -315,7 +319,7 @@ void loop() {
       delay(1000);
 
 
-      if(foundMarker == true && !movementDone){
+      if(foundMarker == true){
         desiredDistance = receivedDistance - 25;
 
 
@@ -329,6 +333,8 @@ void loop() {
    
       moveState = DRIVING;
 
+      
+
 
       if((prevState == SEEKING || abs(receivedAngle) > ((10 * PI)/180) || prevState == WAITING) && !movementDone){
         moveState = TURNING;
@@ -336,7 +342,7 @@ void loop() {
       
 
 
-      if(movementDone && prevState == MOVING){
+      if(movementDone && prevState == DRIVING){
         if(realColor == 1){
           desiredPhi = PI/2;
         }
@@ -347,7 +353,7 @@ void loop() {
         if(!colorChange && color != 0){
          realColor = color;
     //colorChange = true;
-  }
+        }
         moveState = TURNING;
       }
 
@@ -425,7 +431,7 @@ void loop() {
 
 
   }
-
+}
 
 
 // ---------------------------------------------------------------------
