@@ -35,7 +35,7 @@ connected to the PI. To use, run the Arduino and Pi codes on their respective de
 The colorDetect functions are designed to detect arrow colours and pass them to a function called arrowDetect. Though the functions were designed to be modularly implemented using traditional Python import methods, they were hard-coded into the driver program to be better integrated with the state machine.
  ```
 
-3. **Simulink**
+5. **Simulink**
  ```bash
 The Simulink folder contains matlab code and simulink models for simulating the motor control system and plotting our 
 simulation against experimental data.
