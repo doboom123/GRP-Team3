@@ -279,6 +279,7 @@ void loop() {
         angularVelocity[i] = 0;
         moveState = SEEKING;
         movementDone = false;
+        foundMarker = false;
       }
          
         }
