@@ -277,15 +277,19 @@ void loop() {
         accumTheta[i] = 0;
         desired_wheel_theta[i] = 0;
         angularVelocity[i] = 0;
+        moveState = SEEKING;
+        movementDone = false;
       }
-          delay(1000000000);
+         
         }
         if (!settling) {
           settling = true;
           settleStart_ms = current_time_ms;
-        } else if (current_time_ms - settleStart_ms >= settleHold_ms) {
+        } else if ((current_time_ms - settleStart_ms >= settleHold_ms)) {
           prevState = TURNING;
-          moveState = ZEROING;
+          if(moveState != SEEKING){
+            moveState = ZEROING;
+          }
         }
       } else {
         settling = false;
@@ -347,6 +351,7 @@ void loop() {
   }
         moveState = TURNING;
       }
+
 
 
 
@@ -501,6 +506,3 @@ void encoderISR_R() {
 
 
 // printReceived helps us see what data we are getting from the leader
-
-
-
