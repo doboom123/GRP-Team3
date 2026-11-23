@@ -294,7 +294,6 @@ void loop() {
 
     }
 
-
     if (moveState == ZEROING) {
       // zero everything in one shot so there's no velocity spike
       noInterrupts();
@@ -330,8 +329,6 @@ void loop() {
       if((prevState == SEEKING || abs(receivedAngle) > ((10 * PI)/180)) && !movementDone){
         moveState = TURNING;
       }
-      
-
 
       if(movementDone){
         if(realColor == 1){
@@ -348,9 +345,6 @@ void loop() {
         moveState = TURNING;
       }
 
-
-
-
      
     }
 
@@ -364,7 +358,6 @@ void loop() {
         movementDone = true;
         moveState = ZEROING;
       }
-
 
     }
 

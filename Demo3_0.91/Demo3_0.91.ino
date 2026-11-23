@@ -78,8 +78,8 @@ const float Kp_pos = 15;       // proportional gain
 const float Kp_vel = 2;
 
 
-float turnVoltLimit  = 6.0;  // V clamp while turning (was 2.0; raised to get past motor deadband)
-const float driveVoltLimit = 4.0;  // V clamp while driving
+float turnVoltLimit  = 5.0;  // V clamp while turning (was 2.0; raised to get past motor deadband)
+const float driveVoltLimit = 8.0;  // V clamp while driving
 
 
 // Wheel sync (cross-coupling) tuning
@@ -162,7 +162,7 @@ void seekState(){
 
 void turnState(){
   if (movementDone){
-        turnVoltLimit = 4.0;
+        turnVoltLimit = 5.0;
         movementDone = false;
       }
       // each wheel travels an arc of (D/2)*phi  ->  wheel angle = D*phi/(2r)
