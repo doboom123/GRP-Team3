@@ -40,3 +40,6 @@ The colorDetect functions are designed to detect arrow colours and pass them to 
 The Simulink folder contains matlab code and simulink models for simulating the motor control system and plotting our 
 simulation against experimental data.
 ```
+SSH seedlab@raspberrypi
+Pass: team3
+File: demo2colorderrick
